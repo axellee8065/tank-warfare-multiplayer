@@ -465,16 +465,18 @@ class GameEngine {
                 this.gameOver = true;
                 const winTeam = this.scores.alpha >= CONFIG.ROUNDS_TO_WIN ? 'alpha' : 'bravo';
                 // Award coins for game win
-                this._awardCoins(winTeam, 'game');
-                this._showBanner(`${winTeam.toUpperCase()} WINS!`, `${this.scores.alpha} — ${this.scores.bravo}`);
+                const reward = this._awardCoins(winTeam, 'game');
+                const rewardText = reward > 0 ? ` (+${reward} 코인)` : '';
+                this._showBanner(`${winTeam.toUpperCase()} WINS!`, `${this.scores.alpha} — ${this.scores.bravo}${rewardText}`);
                 setTimeout(() => {
                     this._hideBanner();
                     if (this.onGameEnd) this.onGameEnd(winTeam, this.scores, this.tanks);
                 }, 2500);
             } else {
                 // Award coins for round win
-                this._awardCoins(winner, 'round');
-                this._showBanner(`${winner.toUpperCase()} WINS ROUND ${this.round}!`, `${this.scores.alpha} — ${this.scores.bravo}`);
+                const reward = this._awardCoins(winner, 'round');
+                const rewardText = reward > 0 ? ` (+${reward} 코인)` : '';
+                this._showBanner(`${winner.toUpperCase()} WINS ROUND ${this.round}!`, `${this.scores.alpha} — ${this.scores.bravo}${rewardText}`);
                 setTimeout(() => {
                     this._hideBanner();
                     this.round++;
@@ -511,13 +513,15 @@ class GameEngine {
 
     // Award coins for round/game wins
     _awardCoins(winTeam, type) {
-        if (!this.shellInventory) return;
+        if (!this.shellInventory) return 0;
         const humanOnWinTeam = this.tanks.some(t => t.isHuman && (t.team === 0 ? 'alpha' : 'bravo') === winTeam);
         if (humanOnWinTeam) {
             const params = typeof getRewardParams === 'function' ? getRewardParams(this.gameType) : {roundWin: 10, gameWin: 20};
             const amount = type === 'game' ? params.gameWin : params.roundWin;
             this.shellInventory.addCoins(amount);
+            return amount;
         }
+        return 0;
     }
 
     _draw() {

@@ -166,6 +166,7 @@ class ShellInventory {
             loadout: this.loadout
         }));
         this.pushToServer();
+        window.dispatchEvent(new Event('inventory-updated'));
     }
 
     // Set wallet and sync from DB
