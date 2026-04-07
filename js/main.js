@@ -35,12 +35,18 @@
             connectedEl.classList.remove('hidden');
             guestBadge.classList.add('hidden');
             addrEl.textContent = walletMgr.shortAddress(walletMgr.address);
-            if (tradeHint) tradeHint.textContent = '💎 지갑 연결됨 — 아이템 2차 거래 활성화';
+            if (tradeHint) tradeHint.textContent = '💎 지갑 연결됨 — 아이템 2차 거래 활성화 (데이터 동기화 완료)';
+            
+            // Sync with backend database
+            shellInv.setWallet(walletMgr.address);
         } else {
             connectBtn.classList.remove('hidden');
             connectedEl.classList.add('hidden');
             guestBadge.classList.remove('hidden');
             if (tradeHint) tradeHint.textContent = '💎 지갑을 연결하면 아이템 2차 거래가 가능합니다';
+            
+            // Revert or disconnect DB session
+            shellInv.setWallet(null);
         }
     }
 

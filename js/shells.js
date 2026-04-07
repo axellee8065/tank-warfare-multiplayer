@@ -130,6 +130,8 @@ function getRewardParams(gameType) {
 // ---- Shell Inventory Manager ----
 class ShellInventory {
     constructor() {
+        this.walletAddress = null;
+        this.isSyncing = false;
         this._load();
     }
 
@@ -163,6 +165,67 @@ class ShellInventory {
             shells: this.shells,
             loadout: this.loadout
         }));
+        this.pushToServer();
+    }
+
+    // Set wallet and sync from DB
+    async setWallet(address) {
+        if (this.walletAddress === address) return;
+        this.walletAddress = address;
+        if (!address) return;
+        
+        await this.syncWithServer();
+    }
+
+    async syncWithServer() {
+        if (!this.walletAddress) return;
+        this.isSyncing = true;
+        try {
+            const API_URL = window.location.port === '8080' ? 'http://localhost:3000' : '';
+            const res = await fetch(`${API_URL}/api/inventory/${this.walletAddress}`);
+            const data = await res.json();
+            
+            if (data && data.coins !== null) {
+                // Load from server
+                this.coins = data.coins;
+                this.shells = data.shells || {};
+                this.loadout = data.loadout || ['standard', null, null, null, null];
+                this.loadout[0] = 'standard';
+                // Update local storage too
+                localStorage.setItem('tankWarfare_inventory', JSON.stringify({
+                    coins: this.coins,
+                    shells: this.shells,
+                    loadout: this.loadout
+                }));
+                // Try updating simple UI elements if defined
+                if (typeof updateCoinsDisplay === 'function') updateCoinsDisplay();
+            } else {
+                // New user - push current defaults/local storage to server
+                await this.pushToServer();
+            }
+        } catch (e) {
+            console.error("DB Sync Error:", e);
+        } finally {
+            this.isSyncing = false;
+        }
+    }
+
+    async pushToServer() {
+        if (!this.walletAddress || this.isSyncing) return;
+        try {
+            const API_URL = window.location.port === '8080' ? 'http://localhost:3000' : '';
+            await fetch(`${API_URL}/api/inventory/${this.walletAddress}/save`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    coins: this.coins,
+                    shells: this.shells,
+                    loadout: this.loadout
+                })
+            });
+        } catch (e) {
+            console.error("DB Save Error:", e);
+        }
     }
 
     // Get count of a shell type

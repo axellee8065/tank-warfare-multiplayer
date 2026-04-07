@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const { createFortemClient } = require('@fortemlabs/sdk-js');
+const { Pool } = require('pg');
 const crypto = require('crypto');
 const path = require('path');
 
@@ -18,6 +19,27 @@ const API_KEY = process.env.FORTEM_API_KEY;
 const COLLECTION_ID = process.env.FORTEM_COLLECTION_ID;
 
 let fortemClient = null;
+
+// ---- Database Setup ----
+let pool = null;
+if (process.env.DATABASE_URL) {
+    console.log("DB 연동 중...");
+    pool = new Pool({
+        connectionString: process.env.DATABASE_URL,
+    });
+
+    pool.query(`
+        CREATE TABLE IF NOT EXISTS users (
+            wallet_address VARCHAR(255) PRIMARY KEY,
+            coins INT DEFAULT 500,
+            shells JSONB DEFAULT '{}',
+            loadout JSONB DEFAULT '["standard", null, null, null, null]'
+        )
+    `).then(() => console.log("DB 테이블 'users' 초기화 성공!"))
+      .catch(e => console.error("DB 초기화 실패:", e));
+} else {
+    console.warn("⚠️ DATABASE_URL이 설정되지 않아, DB 기능이 비활성화됩니다.");
+}
 
 // ForTem 클라이언트 초기화 및 인증
 async function initFortem() {
@@ -81,6 +103,49 @@ app.post('/api/fortem/mint', async (req, res) => {
     } catch (e) {
         console.error("[Mint Error]", e);
         res.status(500).json({ success: false, message: e.message || 'ForTem 민팅 실패' });
+    }
+});
+
+// ==== INVENTORY API ====
+
+// 인벤토리 조회
+app.get('/api/inventory/:wallet', async (req, res) => {
+    if (!pool) return res.status(503).json({ error: 'DB 연결되지 않음' });
+    try {
+        const result = await pool.query('SELECT * FROM users WHERE wallet_address = $1', [req.params.wallet]);
+        if (result.rows.length > 0) {
+            res.json(result.rows[0]);
+        } else {
+            res.json({ coins: null, shells: null, loadout: null }); // 신규 유저
+        }
+    } catch (e) {
+        console.error("DB Fetch Error:", e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 인벤토리 저장/업데이트
+app.post('/api/inventory/:wallet/save', async (req, res) => {
+    if (!pool) return res.status(503).json({ error: 'DB 연결되지 않음' });
+    const { coins, shells, loadout } = req.body;
+    try {
+        await pool.query(`
+            INSERT INTO users (wallet_address, coins, shells, loadout)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (wallet_address) DO UPDATE 
+            SET coins = EXCLUDED.coins,
+                shells = EXCLUDED.shells,
+                loadout = EXCLUDED.loadout
+        `, [
+            req.params.wallet,
+            coins !== undefined ? coins : 500,
+            JSON.stringify(shells || {}),
+            JSON.stringify(loadout || ['standard', null, null, null, null])
+        ]);
+        res.json({ success: true });
+    } catch (e) {
+        console.error("DB Save Error:", e);
+        res.status(500).json({ error: e.message });
     }
 });
 
