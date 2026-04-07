@@ -92,6 +92,7 @@ app.post('/api/fortem/mint', async (req, res) => {
             quantity: amount,
             redeemCode: redeemCode,
             recipientAddress: walletAddress,
+            itemImage: "Qma6rjFA91qfM7tke1JcKbyHwNvUxdvC61fbFpi6Ke7TrR",
             attributes: [
                 { name: "Currency", value: "Coin" },
                 { name: "Mode", value: gameType },
