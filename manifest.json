@@ -1,0 +1,22 @@
+{
+    "name": "Tank Warfare",
+    "short_name": "TankWar",
+    "description": "최대 6명이 1v1, 2v2, 3v3 배틀을 즐길 수 있는 탱크 전투 게임",
+    "start_url": "/",
+    "display": "standalone",
+    "orientation": "portrait",
+    "background_color": "#0a0e17",
+    "theme_color": "#00e5ff",
+    "icons": [
+        {
+            "src": "icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}

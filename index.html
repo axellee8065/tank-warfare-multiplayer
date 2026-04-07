@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#080c14">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="description" content="최대 6명이 1v1, 2v2, 3v3 배틀을 즐길 수 있는 탱크 전투 게임">
+    <title>TANK WARFARE</title>
+    <link rel="manifest" href="manifest.json">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- ====== TITLE ====== -->
+        <div id="title-screen" class="screen active">
+            <canvas id="bg-canvas"></canvas>
+            <div class="screen-content title-content">
+                <!-- Wallet Bar -->
+                <div id="wallet-bar">
+                    <button id="btn-wallet-connect" class="wallet-btn">
+                        <span class="wallet-icon">💎</span>
+                        <span class="wallet-label">지갑 연결</span>
+                    </button>
+                    <div id="wallet-connected" class="wallet-connected hidden">
+                        <span class="wallet-dot"></span>
+                        <span id="wallet-address" class="wallet-addr">0x1234...abcd</span>
+                        <button id="btn-wallet-disconnect" class="wallet-disconnect" title="연결 해제">✕</button>
+                    </div>
+                    <div id="wallet-guest-badge" class="guest-badge">
+                        <span>👤</span> GUEST
+                    </div>
+                </div>
+
+                <div class="title-logo">
+                    <div class="title-sub">⚔️ BATTLE ROYALE ⚔️</div>
+                    <h1 class="title-main">TANK<br><span>WARFARE</span></h1>
+                    <div class="title-korean">탱크 워페어</div>
+                </div>
+                <div class="title-buttons">
+                    <button id="btn-pvp" class="btn-primary pulse-glow">
+                        <span class="btn-icon">👥</span> PVP 대전
+                    </button>
+                    <button id="btn-vsbot" class="btn-primary btn-vsbot">
+                        <span class="btn-icon">🤖</span> VS BOT
+                    </button>
+                    <button id="btn-editor-open" class="btn-secondary btn-editor-link">
+                        <span class="btn-icon">🗺️</span> MAP EDITOR
+                    </button>
+                    <button id="btn-shop-open" class="btn-secondary btn-shop">
+                        <span class="btn-icon">🛒</span> SHOP <span id="title-coins" class="coin-badge">🪙 500</span>
+                    </button>
+                </div>
+                <div class="controls-hint">
+                    <div class="hint-row"><kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd> + <kbd>SPACE</kbd> — 이동 & 발사 | <kbd>1</kbd>~<kbd>5</kbd> — 포탄 전환</div>
+                    <div class="hint-trade">💎 지갑을 연결하면 아이템 2차 거래가 가능합니다</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====== MODE SELECT ====== -->
+        <div id="mode-screen" class="screen">
+            <div class="screen-content">
+                <h2 class="screen-title" id="mode-screen-title">SELECT MODE <span class="title-ko">모드 선택</span></h2>
+                <div class="mode-cards">
+                    <div class="mode-card" data-mode="1v1">
+                        <div class="mode-icon">🎯</div>
+                        <div class="mode-name">1v1</div>
+                        <div class="mode-desc">일대일 결투</div>
+                        <div class="mode-players">2P</div>
+                    </div>
+                    <div class="mode-card" data-mode="2v2">
+                        <div class="mode-icon">⚔️</div>
+                        <div class="mode-name">2v2</div>
+                        <div class="mode-desc">팀 전투</div>
+                        <div class="mode-players">4P</div>
+                    </div>
+                    <div class="mode-card" data-mode="3v3">
+                        <div class="mode-icon">💥</div>
+                        <div class="mode-name">3v3</div>
+                        <div class="mode-desc">대전쟁</div>
+                        <div class="mode-players">6P</div>
+                    </div>
+                </div>
+                <div id="difficulty-section" class="hidden">
+                    <h3 class="section-title">DIFFICULTY <span class="title-ko">난이도</span></h3>
+                    <div class="difficulty-cards">
+                        <div class="diff-card" data-diff="easy">
+                            <div class="diff-icon">😊</div>
+                            <div class="diff-name">EASY</div>
+                            <div class="diff-ko">하</div>
+                        </div>
+                        <div class="diff-card selected" data-diff="medium">
+                            <div class="diff-icon">😤</div>
+                            <div class="diff-name">MEDIUM</div>
+                            <div class="diff-ko">중</div>
+                        </div>
+                        <div class="diff-card" data-diff="hard">
+                            <div class="diff-icon">💀</div>
+                            <div class="diff-name">HARD</div>
+                            <div class="diff-ko">상</div>
+                        </div>
+                    </div>
+                </div>
+                <button id="btn-back-mode" class="btn-secondary">← BACK</button>
+            </div>
+        </div>
+
+        <!-- ====== TEAM SETUP ====== -->
+        <div id="setup-screen" class="screen">
+            <div class="screen-content">
+                <h2 class="screen-title">TEAM SETUP <span class="title-ko">팀 설정</span></h2>
+                <div class="teams-container">
+                    <div class="team-panel team-alpha">
+                        <h3 class="team-name">🔵 ALPHA</h3>
+                        <div id="team-alpha-slots" class="team-slots"></div>
+                    </div>
+                    <div class="vs-divider"><span>VS</span></div>
+                    <div class="team-panel team-bravo">
+                        <h3 class="team-name">🔴 BRAVO</h3>
+                        <div id="team-bravo-slots" class="team-slots"></div>
+                    </div>
+                </div>
+                <div class="map-select">
+                    <h3 class="section-title">MAP <span class="title-ko">맵</span></h3>
+                    <div class="map-cards" id="map-cards"></div>
+                </div>
+                <div class="setup-buttons">
+                    <button id="btn-back-setup" class="btn-secondary">← BACK</button>
+                    <button id="btn-battle" class="btn-primary btn-large pulse-glow">
+                        <span class="btn-icon">⚔️</span> BATTLE!
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====== MAP EDITOR ====== -->
+        <div id="editor-screen" class="screen">
+            <div class="editor-layout">
+                <div class="editor-toolbar">
+                    <button class="tool-btn active" data-tool="wall"><span class="tool-icon">🧱</span> 벽</button>
+                    <button class="tool-btn" data-tool="breakable"><span class="tool-icon">📦</span> 파괴</button>
+                    <button class="tool-btn" data-tool="eraser"><span class="tool-icon">🧹</span> 지우기</button>
+                    <button class="tool-btn" data-tool="spawn_a"><span class="tool-icon">🔵</span> A스폰</button>
+                    <button class="tool-btn" data-tool="spawn_b"><span class="tool-icon">🔴</span> B스폰</button>
+                </div>
+                <div class="editor-main">
+                    <canvas id="editor-canvas"></canvas>
+                </div>
+                <div class="editor-bottom">
+                    <input type="text" id="editor-map-name" value="CUSTOM MAP" maxlength="16" placeholder="맵 이름...">
+                    <button id="btn-editor-clear" class="btn-secondary">🗑️</button>
+                    <button id="btn-editor-save" class="btn-primary">💾 저장</button>
+                    <button id="btn-editor-play" class="btn-primary" style="background:linear-gradient(135deg,#00c853,#00e676);color:#000">▶ 플레이</button>
+                    <button id="btn-editor-back" class="btn-secondary">✕</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====== GAME SCREEN ====== -->
+        <div id="game-screen" class="screen">
+            <canvas id="game-canvas"></canvas>
+            <div id="hud">
+                <div id="hud-alpha" class="hud-team"></div>
+                <div id="hud-center"><div id="round-info">ROUND 1</div></div>
+                <div id="hud-bravo" class="hud-team"></div>
+            </div>
+            <!-- Touch controls overlay -->
+            <div id="touch-controls" class="hidden">
+                <div id="joy-base"><div id="joy-knob"></div></div>
+                <div id="fire-btn">FIRE</div>
+            </div>
+            <div id="round-banner" class="hidden">
+                <div id="round-banner-text"></div>
+                <div id="round-banner-sub"></div>
+            </div>
+            <div id="pause-overlay" class="hidden">
+                <div class="pause-content">
+                    <h2>PAUSED</h2>
+                    <p>일시정지</p>
+                    <button id="btn-resume" class="btn-primary">RESUME</button>
+                    <button id="btn-quit" class="btn-secondary">QUIT</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====== RESULT ====== -->
+        <div id="result-screen" class="screen">
+            <div class="screen-content result-content">
+                <div id="result-trophy">🏆</div>
+                <h2 id="winner-text">TEAM ALPHA WINS!</h2>
+                <div id="winner-sub">승리!</div>
+                <div id="score-display">
+                    <div class="score-team score-alpha">
+                        <span class="score-name">ALPHA</span>
+                        <span id="score-alpha" class="score-value">0</span>
+                    </div>
+                    <div class="score-separator">—</div>
+                    <div class="score-team score-bravo">
+                        <span class="score-name">BRAVO</span>
+                        <span id="score-bravo" class="score-value">0</span>
+                    </div>
+                </div>
+                <div id="stats-grid"></div>
+                <div class="result-buttons">
+                    <button id="btn-rematch" class="btn-primary pulse-glow">🔄 REMATCH</button>
+                    <button id="btn-menu" class="btn-secondary">🏠 MENU</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====== SHOP ====== -->
+    <div id="shop-screen" class="screen">
+        <div class="screen-content shop-content">
+            <h2 class="screen-title">🛒 SHELL SHOP <span class="title-ko">포탄 상점</span></h2>
+            <div class="shop-coins-bar">
+                <span class="shop-coins-label">보유 코인</span>
+                <span id="shop-coins" class="shop-coins-value">🪙 500</span>
+            </div>
+            <div class="fortem-export" id="fortem-export-panel" style="display: none;">
+                <h4>포템(ForTem)으로 코인 내보내기 <span style="font-size: 0.8rem; font-weight: normal; color: #ff0;">(2차 거래용)</span></h4>
+                <div class="export-controls">
+                    <input type="number" id="export-amount" min="1" placeholder="수량 입력" style="width: 100px; padding: 5px; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
+                    <button id="btn-export-fortem" class="btn-primary" style="padding: 5px 15px; font-size: 0.9rem;">민팅(전송)</button>
+                </div>
+                <div id="export-status" style="font-size: 0.8rem; margin-top: 5px; color: #aaa;"></div>
+            </div>
+
+            <div id="shop-grid" class="shop-grid"></div>
+
+            <h3 class="loadout-title">🎯 LOADOUT <span class="title-ko">로드아웃</span></h3>
+            <div id="loadout-slots" class="loadout-slots"></div>
+
+            <div class="shop-buttons">
+                <button id="btn-shop-close" class="btn-primary">✅ 완료</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/utils.js"></script>
+    <script src="js/shells.js"></script>
+    <script src="js/entities.js"></script>
+    <script src="js/ai.js"></script>
+    <script src="js/map.js"></script>
+    <script src="js/engine.js"></script>
+    <script src="js/touch.js"></script>
+    <script src="js/editor.js"></script>
+    <script src="js/wallet.js"></script>
+    <script src="js/main.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').catch(() => {});
+        }
+    </script>
+</body>
+</html>
