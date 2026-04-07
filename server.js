@@ -69,11 +69,11 @@ app.post('/api/fortem/mint', async (req, res) => {
     const { walletAddress, amount, gameType, mode } = req.body;
     
     if (!walletAddress || !amount) {
-        return res.status(400).json({ success: false, message: 'walletAddress와 amount가 필요합니다.' });
+        return res.status(400).json({ success: false, message: 'walletAddress and amount are required.' });
     }
 
     if (!fortemClient) {
-        return res.status(500).json({ success: false, message: 'ForTem 서버가 준비되지 않았습니다.' });
+        return res.status(500).json({ success: false, message: 'ForTem server is not ready.' });
     }
 
     try {
@@ -87,8 +87,8 @@ app.post('/api/fortem/mint', async (req, res) => {
 
         // ForTem에 코인을 NFT 아이템 객체로 생성 (아이템의 quantity를 코인 수량으로 사용)
         const result = await fortemClient.items.create(COLLECTION_ID, {
-            name: `탱크 코인 보상`,
-            description: `${gameType} 모드에서 획득한 ${amount} 코인`,
+            name: `Tank Coin Reward`,
+            description: `${amount} Coins acquired in ${gameType} mode`,
             quantity: amount,
             redeemCode: redeemCode,
             recipientAddress: walletAddress,
@@ -102,7 +102,7 @@ app.post('/api/fortem/mint', async (req, res) => {
         res.json({ success: true, data: result.data, redeemCode });
     } catch (e) {
         console.error("[Mint Error]", e);
-        res.status(500).json({ success: false, message: e.message || 'ForTem 민팅 실패' });
+        res.status(500).json({ success: false, message: e.message || 'ForTem minting failed' });
     }
 });
 
@@ -110,7 +110,7 @@ app.post('/api/fortem/mint', async (req, res) => {
 
 // 인벤토리 조회
 app.get('/api/inventory/:wallet', async (req, res) => {
-    if (!pool) return res.status(503).json({ error: 'DB 연결되지 않음' });
+    if (!pool) return res.status(503).json({ error: 'DB not connected' });
     try {
         const result = await pool.query('SELECT * FROM users WHERE wallet_address = $1', [req.params.wallet]);
         if (result.rows.length > 0) {
@@ -126,7 +126,7 @@ app.get('/api/inventory/:wallet', async (req, res) => {
 
 // 인벤토리 저장/업데이트
 app.post('/api/inventory/:wallet/save', async (req, res) => {
-    if (!pool) return res.status(503).json({ error: 'DB 연결되지 않음' });
+    if (!pool) return res.status(503).json({ error: 'DB not connected' });
     const { coins, shells, loadout } = req.body;
     try {
         await pool.query(`
