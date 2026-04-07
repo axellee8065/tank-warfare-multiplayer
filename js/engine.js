@@ -466,7 +466,7 @@ class GameEngine {
                 const winTeam = this.scores.alpha >= CONFIG.ROUNDS_TO_WIN ? 'alpha' : 'bravo';
                 // Award coins for game win
                 const reward = this._awardCoins(winTeam, 'game');
-                const rewardText = reward > 0 ? ` (+${reward} 코인)` : '';
+                const rewardText = reward > 0 ? ` (+${reward} COINS)` : '';
                 this._showBanner(`${winTeam.toUpperCase()} WINS!`, `${this.scores.alpha} — ${this.scores.bravo}${rewardText}`);
                 setTimeout(() => {
                     this._hideBanner();
@@ -475,7 +475,7 @@ class GameEngine {
             } else {
                 // Award coins for round win
                 const reward = this._awardCoins(winner, 'round');
-                const rewardText = reward > 0 ? ` (+${reward} 코인)` : '';
+                const rewardText = reward > 0 ? ` (+${reward} COINS)` : '';
                 this._showBanner(`${winner.toUpperCase()} WINS ROUND ${this.round}!`, `${this.scores.alpha} — ${this.scores.bravo}${rewardText}`);
                 setTimeout(() => {
                     this._hideBanner();

@@ -35,7 +35,7 @@
             connectedEl.classList.remove('hidden');
             guestBadge.classList.add('hidden');
             addrEl.textContent = walletMgr.shortAddress(walletMgr.address);
-            if (tradeHint) tradeHint.textContent = '💎 지갑 연결됨 — 아이템 2차 거래 활성화 (데이터 동기화 완료)';
+            if (tradeHint) tradeHint.textContent = '💎 Wallet connected — Secondary trading active (Data Synced)';
             
             // Sync with backend database
             shellInv.setWallet(walletMgr.address);
@@ -43,7 +43,7 @@
             connectBtn.classList.remove('hidden');
             connectedEl.classList.add('hidden');
             guestBadge.classList.remove('hidden');
-            if (tradeHint) tradeHint.textContent = '💎 지갑을 연결하면 아이템 2차 거래가 가능합니다';
+            if (tradeHint) tradeHint.textContent = '💎 Connect wallet to enable secondary item trading';
             
             // Revert or disconnect DB session
             shellInv.setWallet(null);
@@ -60,12 +60,12 @@
         overlay.innerHTML = `
             <div class="wallet-modal">
                 <h3>💎 SLUSH WALLET</h3>
-                <p>Sui 블록체인 지갑이 필요합니다.<br>Slush 지갑을 설치해주세요.</p>
+                <p>Sui blockchain wallet is required.<br>Please install Slush Wallet.</p>
                 <div style="display:flex;justify-content:center;gap:0.5rem;flex-wrap:wrap">
                     <a href="https://chromewebstore.google.com/detail/slush-a-sui-wallet/opcgpfmipidbgpenhmajoajpbobppdil" target="_blank" class="wallet-modal-btn">
-                        🔗 설치하기
+                        🔗 Install
                     </a>
-                    <button class="wallet-modal-btn btn-ghost" id="btn-modal-close">닫기</button>
+                    <button class="wallet-modal-btn btn-ghost" id="btn-modal-close">Close</button>
                 </div>
             </div>
         `;
@@ -87,7 +87,7 @@
             updateWalletUI();
         } else {
             if (result.error === 'no_wallet') showWalletInstallModal();
-            else alert("지갑 연결 오류: " + (result.message || '알 수 없는 오류'));
+            else alert("Wallet connect error: " + (result.message || 'Unknown error'));
         }
     }
 
@@ -373,7 +373,7 @@
         if (!editor) return;
         const mapData = editor.toMapData();
         if (mapData.spawns.alpha.length === 0 || mapData.spawns.bravo.length === 0) {
-            alert('양 팀의 스폰 포인트를 최소 1개씩 배치하세요!');
+            alert('Place at least 1 spawn point for each team!');
             return;
         }
         const tempIdx = MAP_DATA.length;
@@ -417,7 +417,7 @@
         wt.style.webkitBackgroundClip = 'text';
         wt.style.webkitTextFillColor = 'transparent';
         wt.style.backgroundClip = 'text';
-        document.getElementById('winner-sub').textContent = isAlpha ? 'ALPHA 팀 승리!' : 'BRAVO 팀 승리!';
+        document.getElementById('winner-sub').textContent = isAlpha ? 'VICTORY!' : 'VICTORY!';
         document.getElementById('score-alpha').textContent = scores.alpha;
         document.getElementById('score-bravo').textContent = scores.bravo;
 
@@ -425,10 +425,10 @@
         tanks.forEach(t => { totalShots += t.stats.shots; totalHits += t.stats.hits; totalKills += t.stats.kills; });
         const acc = totalShots > 0 ? Math.round((totalHits / totalShots) * 100) : 0;
         document.getElementById('stats-grid').innerHTML = `
-            <div class="stat-card"><div class="stat-label">발사</div><div class="stat-value">${totalShots}</div></div>
-            <div class="stat-card"><div class="stat-label">명중</div><div class="stat-value">${totalHits}</div></div>
-            <div class="stat-card"><div class="stat-label">명중률</div><div class="stat-value">${acc}%</div></div>
-            <div class="stat-card"><div class="stat-label">처치</div><div class="stat-value">${totalKills}</div></div>
+            <div class="stat-card"><div class="stat-label">SHOTS</div><div class="stat-value">${totalShots}</div></div>
+            <div class="stat-card"><div class="stat-label">HITS</div><div class="stat-value">${totalHits}</div></div>
+            <div class="stat-card"><div class="stat-label">ACCURACY</div><div class="stat-value">${acc}%</div></div>
+            <div class="stat-card"><div class="stat-label">KILLS</div><div class="stat-value">${totalKills}</div></div>
         `;
     }
 
@@ -472,8 +472,8 @@
                 <div class="shell-stats">DMG ${st.damage} | SPD ${st.speed} | R ${st.radius}</div>
                 <div class="shell-owned">\uD83D\uDCE6 ${ownedLabel}</div>
                 ${st.price > 0 ? `<button class="btn-buy" data-shell="${id}" ${canBuy ? '' : 'disabled'}>
-                    \uD83E\uDE99 ${st.price} / ${st.packSize}\uBC1C
-                </button>` : `<div style="color:#666;font-size:10px;font-family:Orbitron">\uBB34\uD55C</div>`}
+                    \uD83E\uDE99 ${st.price} / x${st.packSize}
+                </button>` : `<div style="color:#666;font-size:10px;font-family:Orbitron">INF</div>`}
             `;
             grid.appendChild(card);
         }
@@ -622,12 +622,12 @@
         editor.mapName = name;
         const mapData = editor.toMapData();
         if (mapData.spawns.alpha.length === 0 || mapData.spawns.bravo.length === 0) {
-            alert('양 팀 스폰 포인트를 배치하세요!');
+            alert('Place spawn points for both teams!');
             return;
         }
         customMaps.push(mapData);
         MapEditor.saveCustomMaps(customMaps);
-        alert(`"${name}" 저장 완료!`);
+        alert(`"${name}" saved!`);
     });
     document.getElementById('btn-editor-play').addEventListener('click', startGameWithEditorMap);
 
@@ -649,7 +649,7 @@
     // Fortem Export
     document.getElementById('btn-export-fortem')?.addEventListener('click', async () => {
         if (!window.walletMgr || !window.walletMgr.connected) {
-            alert('지갑을 먼저 연결해주세요!');
+            alert('Please connect wallet first!');
             return;
         }
         const amtInput = document.getElementById('export-amount');
@@ -657,18 +657,18 @@
         const amount = parseInt(amtInput.value, 10);
         
         if (isNaN(amount) || amount <= 0) {
-            alert('올바른 수량을 입력하세요.');
+            alert('Please enter a valid amount.');
             return;
         }
         if (shellInv.coins < amount) {
-            alert('보유 코인이 부족합니다.');
+            alert('Not enough coins.');
             return;
         }
 
         const btn = document.getElementById('btn-export-fortem');
         btn.disabled = true;
-        btn.textContent = '전송 중...';
-        statusDiv.textContent = 'ForTem NFT 민팅 요청 중...';
+        btn.textContent = 'Sending...';
+        statusDiv.textContent = 'Requesting ForTem NFT Mint...';
         statusDiv.style.color = '#ffaa00';
 
         try {
@@ -689,19 +689,19 @@
                 shellInv.coins -= amount;
                 shellInv.save();
                 updateCoinsDisplay();
-                statusDiv.textContent = `✅ 전송 성공! (Redeem 코드를 확인하세요: ${data.redeemCode})`;
+                statusDiv.textContent = `✅ Export success! (Redeem Code: ${data.redeemCode})`;
                 statusDiv.style.color = '#00e676';
                 amtInput.value = '';
             } else {
-                throw new Error(data.message || '서버 오류');
+                throw new Error(data.message || 'Server error');
             }
         } catch (e) {
             console.error(e);
-            statusDiv.textContent = `❌ 전송 실패: ${e.message}`;
+            statusDiv.textContent = `❌ Export failed: ${e.message}`;
             statusDiv.style.color = '#ff1744';
         } finally {
             btn.disabled = false;
-            btn.textContent = '민팅(전송)';
+            btn.textContent = 'Mint (Export)';
         }
     });
 

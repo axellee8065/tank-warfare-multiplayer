@@ -82,7 +82,7 @@ class SuiWalletManager {
         }
 
         if (!wallet) {
-            return { success: false, error: 'no_wallet', message: 'Slush 지갑을 찾을 수 없습니다' };
+            return { success: false, error: 'no_wallet', message: 'Could not find Slush wallet' };
         }
 
         try {
@@ -103,7 +103,7 @@ class SuiWalletManager {
             return { success: this.connected, address: this.address };
         } catch (e) {
             console.error('[Wallet] Connect error:', e);
-            return { success: false, error: 'rejected', message: '지갑 연결이 거부되었습니다' };
+            return { success: false, error: 'rejected', message: 'Wallet connection rejected' };
         }
     }
 

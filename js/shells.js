@@ -5,7 +5,7 @@
 const SHELL_TYPES = {
     standard: {
         id: 'standard',
-        name: '기본탄',
+        name: 'Standard',
         nameEn: 'STANDARD',
         icon: '💛',
         color: '#ffdd00',
@@ -18,7 +18,7 @@ const SHELL_TYPES = {
         life: 3,
         grade: 'free',
         gradeLabel: '🆓',
-        desc: '기본 포탄',
+        desc: 'Standard shell',
         // Effects
         explosive: false,
         piercing: false,
@@ -27,7 +27,7 @@ const SHELL_TYPES = {
     },
     explosive: {
         id: 'explosive',
-        name: '폭발탄',
+        name: 'Explosive',
         nameEn: 'EXPLOSIVE',
         icon: '🔴',
         color: '#ff4444',
@@ -40,7 +40,7 @@ const SHELL_TYPES = {
         life: 2.5,
         grade: 'common',
         gradeLabel: '⭐',
-        desc: '착탄 시 범위 폭발 (반경 45px)',
+        desc: 'Explodes on impact (45px radius)',
         explosive: true,
         splashRadius: 45,
         splashDamage: 12,
@@ -50,7 +50,7 @@ const SHELL_TYPES = {
     },
     piercing: {
         id: 'piercing',
-        name: '관통탄',
+        name: 'Piercing',
         nameEn: 'PIERCING',
         icon: '🔵',
         color: '#4fc3f7',
@@ -63,7 +63,7 @@ const SHELL_TYPES = {
         life: 2,
         grade: 'common',
         gradeLabel: '⭐',
-        desc: '파괴벽 관통 + 높은 데미지',
+        desc: 'Pierces crates + High damage',
         explosive: false,
         piercing: true,
         bounce: 0,
@@ -71,7 +71,7 @@ const SHELL_TYPES = {
     },
     ricochet: {
         id: 'ricochet',
-        name: '바운스탄',
+        name: 'Ricochet',
         nameEn: 'RICOCHET',
         icon: '💜',
         color: '#ce93d8',
@@ -84,7 +84,7 @@ const SHELL_TYPES = {
         life: 4,
         grade: 'rare',
         gradeLabel: '⭐⭐',
-        desc: '벽에서 1회 반사',
+        desc: 'Bounces off walls once',
         explosive: false,
         piercing: false,
         bounce: 1,
@@ -92,7 +92,7 @@ const SHELL_TYPES = {
     },
     venom: {
         id: 'venom',
-        name: '독탄',
+        name: 'Venom',
         nameEn: 'VENOM',
         icon: '🟢',
         color: '#69f0ae',
@@ -105,7 +105,7 @@ const SHELL_TYPES = {
         life: 2.5,
         grade: 'rare',
         gradeLabel: '⭐⭐',
-        desc: '독 효과 3초 (초당 8 데미지)',
+        desc: 'Poison effect 3s (8 dmg/s)',
         explosive: false,
         piercing: false,
         bounce: 0,
@@ -254,12 +254,12 @@ class ShellInventory {
     // Buy a pack
     buyPack(shellId) {
         const type = SHELL_TYPES[shellId];
-        if (!type || type.price <= 0) return { success: false, msg: '구매 불가' };
-        if (this.coins < type.price) return { success: false, msg: '코인 부족' };
+        if (!type || type.price <= 0) return { success: false, msg: 'Cannot purchase' };
+        if (this.coins < type.price) return { success: false, msg: 'Not enough coins' };
 
         this.coins -= type.price;
         this.addShells(shellId, type.packSize);
-        return { success: true, msg: `${type.name} x${type.packSize} 구매 완료!` };
+        return { success: true, msg: `Purchased ${type.name} x${type.packSize}!` };
     }
 
     // Add coins
