@@ -198,7 +198,7 @@ class ShellInventory {
                     loadout: this.loadout
                 }));
                 // Try updating simple UI elements if defined
-                if (typeof updateCoinsDisplay === 'function') updateCoinsDisplay();
+                window.dispatchEvent(new Event('inventory-updated'));
             } else {
                 // New user - push current defaults/local storage to server
                 await this.pushToServer();

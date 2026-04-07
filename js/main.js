@@ -87,6 +87,7 @@
             updateWalletUI();
         } else {
             if (result.error === 'no_wallet') showWalletInstallModal();
+            else alert("지갑 연결 오류: " + (result.message || '알 수 없는 오류'));
         }
     }
 
@@ -573,6 +574,15 @@
         showScreen('title-screen');
         updateCoinsDisplay();
     });
+    
+    // Listen for inventory updates from server sync
+    window.addEventListener('inventory-updated', () => {
+        updateCoinsDisplay();
+        if (currentScreen === 'shop-screen') {
+            renderLoadout();
+        }
+    });
+
     document.getElementById('btn-back-mode').addEventListener('click', () => showScreen('title-screen'));
     document.getElementById('btn-back-setup').addEventListener('click', () => showScreen('mode-screen'));
 
