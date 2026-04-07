@@ -445,8 +445,10 @@
         
         const exportPanel = document.getElementById('fortem-export-panel');
         if (exportPanel) {
-            if (window.walletMgr && window.walletMgr.connected) {
-                exportPanel.style.display = 'block';
+            if (walletMgr && walletMgr.connected) {
+                exportPanel.style.display = 'flex';
+                exportPanel.style.flexDirection = 'column';
+                exportPanel.style.gap = '8px';
             } else {
                 exportPanel.style.display = 'none';
             }
@@ -648,7 +650,7 @@
 
     // Fortem Export
     document.getElementById('btn-export-fortem')?.addEventListener('click', async () => {
-        if (!window.walletMgr || !window.walletMgr.connected) {
+        if (!walletMgr || !walletMgr.connected) {
             alert('Please connect wallet first!');
             return;
         }
@@ -678,7 +680,7 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    walletAddress: window.walletMgr.address,
+                    walletAddress: walletMgr.address,
                     amount: amount,
                     gameType: gameType || 'unknown_mode'
                 })

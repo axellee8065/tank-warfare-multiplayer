@@ -239,6 +239,16 @@ class ShellInventory {
     addShells(shellId, count) {
         if (shellId === 'standard') return;
         this.shells[shellId] = (this.shells[shellId] || 0) + count;
+        
+        // Auto-equip logic: If not equipped and there is an empty slot, equip it
+        const alreadyEquipped = this.loadout.includes(shellId);
+        if (!alreadyEquipped) {
+            const emptyIndex = this.loadout.findIndex(id => id === null);
+            if (emptyIndex > 0) {
+                this.loadout[emptyIndex] = shellId;
+            }
+        }
+        
         this.save();
     }
 
