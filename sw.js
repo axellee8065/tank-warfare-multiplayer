@@ -1,5 +1,5 @@
-const CACHE_NAME = 'tank-warfare-v2';
-const ASSETS = ['/', '/index.html', '/style.css', '/js/utils.js', '/js/entities.js', '/js/ai.js', '/js/map.js', '/js/engine.js', '/js/editor.js', '/js/touch.js', '/js/wallet.js', '/js/main.js'];
+const CACHE_NAME = 'tank-warfare-v4';
+const ASSETS = ['/', '/index.html', '/style.css', '/js/utils.js', '/js/shells.js', '/js/entities.js', '/js/ai.js', '/js/map.js', '/js/engine.js', '/js/editor.js', '/js/touch.js', '/js/wallet.js', '/js/main.js'];
 
 self.addEventListener('install', e => {
     e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(ASSETS)));
