@@ -1,6 +1,7 @@
 // ============================================
 // TANK WARFARE — Shell System & Economy
 // ============================================
+const { CONFIG } = typeof window !== 'undefined' ? window : require('./utils.js');
 
 const SHELL_TYPES = {
     standard: {
@@ -315,4 +316,8 @@ class ShellInventory {
             };
         });
     }
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { SHELL_TYPES, SHELL_ORDER, COIN_REWARDS, getRewardParams };
 }

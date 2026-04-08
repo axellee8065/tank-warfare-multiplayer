@@ -28,6 +28,7 @@
                     <div id="wallet-connected" class="wallet-connected hidden">
                         <span class="wallet-dot"></span>
                         <span id="wallet-address" class="wallet-addr">0x1234...abcd</span>
+                        <button id="btn-stats-open" class="wallet-stats-btn" title="View Profile Stats">📊</button>
                         <button id="btn-wallet-disconnect" class="wallet-disconnect" title="Disconnect">✕</button>
                     </div>
                     <div id="wallet-guest-badge" class="guest-badge">
@@ -40,8 +41,11 @@
                     <h1 class="title-main">TANK<br><span>WARFARE</span></h1>
                 </div>
                 <div class="title-buttons">
+                    <button id="btn-multiplayer" class="btn-primary" style="background: linear-gradient(135deg, #00e5ff, #00b0ff); box-shadow: 0 0 15px rgba(0, 229, 255, 0.4);">
+                        <span class="btn-icon">🌐</span> MULTIPLAYER
+                    </button>
                     <button id="btn-pvp" class="btn-primary pulse-glow">
-                        <span class="btn-icon">👥</span> PVP BATTLE
+                        <span class="btn-icon">👥</span> LOCAL PVP
                     </button>
                     <button id="btn-vsbot" class="btn-primary btn-vsbot">
                         <span class="btn-icon">🤖</span> VS BOT
@@ -130,6 +134,16 @@
                         <span class="btn-icon">⚔️</span> BATTLE!
                     </button>
                 </div>
+            </div>
+        </div>
+
+        <!-- ====== MATCHMAKING ====== -->
+        <div id="matchmaking-screen" class="screen">
+            <div class="screen-content result-content" style="text-align: center;">
+                <h2>MATCHMAKING</h2>
+                <div id="queue-status" style="margin: 20px 0; font-size: 1.2rem; color: #00e5ff;">Joining Queue...</div>
+                <div class="loading-spinner"></div>
+                <button id="btn-cancel-queue" class="btn-secondary" style="margin-top: 40px;">CANCEL</button>
             </div>
         </div>
 
@@ -237,6 +251,24 @@
         </div>
     </div>
 
+    <!-- ====== PROFILE STATS ====== -->
+    <div id="stats-screen" class="screen" style="z-index: 1000; background: rgba(0,0,0,0.85);">
+        <div class="screen-content" style="max-width: 400px; padding: 30px; background: #111; border: 2px solid #00f0ff; border-radius: 10px; box-shadow: 0 0 20px rgba(0, 240, 255, 0.3);">
+            <h2 class="screen-title" style="margin-bottom: 20px;">📊 PROFILE STATS</h2>
+            <div id="stats-content" style="display: flex; flex-direction: column; gap: 15px; font-size: 1.2rem;">
+                <div style="display: flex; justify-content: space-between;"><span>Matches Played:</span><span id="stat-matches" style="color: #00f0ff;">0</span></div>
+                <div style="display: flex; justify-content: space-between;"><span>Total Wins:</span><span id="stat-wins" style="color: #0f0;">0</span></div>
+                <div style="display: flex; justify-content: space-between;"><span>Total Kills:</span><span id="stat-kills" style="color: #f00;">0</span></div>
+                <div style="display: flex; justify-content: space-between; border-top: 1px solid #444; padding-top: 15px;"><span>Win Rate:</span><span id="stat-winrate" style="color: #ff0;">0%</span></div>
+            </div>
+            <div class="shop-buttons" style="margin-top: 30px;">
+                <button id="btn-stats-close" class="btn-primary">✅ DONE</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Networking -->
+    <script src="/socket.io/socket.io.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/shells.js"></script>
     <script src="js/entities.js"></script>

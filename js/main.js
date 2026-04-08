@@ -182,6 +182,12 @@
 
     function openModeScreen(type) {
         gameType = type;
+        if (type === 'online') {
+            // Bypass wallet for debug testing
+            startMatchmaking('3v3');
+            return;
+        }
+
         const diffSection = document.getElementById('difficulty-section');
         const title = document.getElementById('mode-screen-title');
         if (type === 'vsbot') {
@@ -193,6 +199,56 @@
         }
         showScreen('mode-screen');
     }
+
+    function startMatchmaking(mode) {
+        if (!window.socket) {
+            window.socket = io('http://localhost:3000');
+            
+            window.socket.on('queue_update', (d) => {
+                document.getElementById('queue-status').textContent = `Queue Position: ${d.position}`;
+            });
+            
+            window.socket.on('match_found', (d) => {
+                console.log("MATCH FOUND!", d);
+                playerSetup = d.setup;
+                selectedMap = d.mapIndex;
+                selectedMode = mode;
+                
+                showScreen('game-screen');
+                const canvas = document.getElementById('game-canvas');
+                if (engine) engine.stop();
+
+                if (!touchCtrl) touchCtrl = new TouchControls();
+                if (isTouchDevice) touchCtrl.show();
+                else touchCtrl.hide();
+
+                engine = new GameEngine(canvas);
+                engine.shellInventory = shellInv;
+                // Add online overrides
+                engine.socket = window.socket;
+                engine.roomId = d.roomId;
+                
+                engine.init(selectedMode, playerSetup, selectedMap, 'medium', 'online', touchCtrl);
+                engine.onGameEnd = (winTeam, scores, tanks) => showResultScreen(winTeam, scores, tanks);
+                // The engine won't start local tick loop, but rather binds to socket in engine.js
+            });
+        }
+        
+        window.socket.emit('join_queue', {
+            walletAddress: walletMgr.address,
+            loadout: shellInv.loadout,
+            mode: mode
+        });
+        
+        document.getElementById('queue-status').textContent = 'Joining Queue...';
+        showScreen('matchmaking-screen');
+    }
+
+    document.getElementById('btn-cancel-queue').addEventListener('click', () => {
+        if (window.socket) window.socket.disconnect();
+        window.socket = null;
+        showScreen('main-screen');
+    });
 
     function selectMode(mode) {
         selectedMode = mode;
@@ -430,6 +486,24 @@
             <div class="stat-card"><div class="stat-label">ACCURACY</div><div class="stat-value">${acc}%</div></div>
             <div class="stat-card"><div class="stat-label">KILLS</div><div class="stat-value">${totalKills}</div></div>
         `;
+
+        if (walletMgr && walletMgr.connected) {
+            const myTank = tanks.find(t => t.isHuman);
+            const myTeam = myTank ? (myTank.team === 0 ? 'alpha' : 'bravo') : null;
+            const isWin = myTeam === winTeam;
+            const myKills = myTank ? myTank.stats.kills : 0;
+
+            const API_URL = window.location.port === '8080' ? 'http://localhost:3000/api/stats/update' : '/api/stats/update';
+            fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    walletAddress: walletMgr.address,
+                    isWin: isWin,
+                    kills: myKills
+                })
+            }).catch(e => console.error("Stats push failed:", e));
+        }
     }
 
     // ---- Shop ----
@@ -564,10 +638,32 @@
     }
 
     // ---- Events ----
-    // Wallet
     document.getElementById('btn-wallet-connect').addEventListener('click', onWalletConnect);
     document.getElementById('btn-wallet-disconnect').addEventListener('click', onWalletDisconnect);
 
+    document.getElementById('btn-stats-open').addEventListener('click', async () => {
+        if (!walletMgr || !walletMgr.connected) return;
+        showScreen('stats-screen');
+        try {
+            const API_URL = window.location.port === '8080' ? 'http://localhost:3000/api/stats/' + walletMgr.address : '/api/stats/' + walletMgr.address;
+            const res = await fetch(API_URL);
+            const data = await res.json();
+            if (data.success) {
+                const s = data.stats;
+                document.getElementById('stat-matches').textContent = s.total_matches;
+                document.getElementById('stat-wins').textContent = s.total_wins;
+                document.getElementById('stat-kills').textContent = s.total_kills;
+                const winRate = s.total_matches > 0 ? Math.round((s.total_wins / s.total_matches) * 100) : 0;
+                document.getElementById('stat-winrate').textContent = winRate + '%';
+            }
+        } catch(e) { console.error(e); }
+    });
+
+    document.getElementById('btn-stats-close').addEventListener('click', () => {
+        showScreen('title-screen');
+    });
+
+    document.getElementById('btn-multiplayer').addEventListener('click', () => openModeScreen('online'));
     document.getElementById('btn-pvp').addEventListener('click', () => openModeScreen('pvp'));
     document.getElementById('btn-vsbot').addEventListener('click', () => openModeScreen('vsbot'));
     document.getElementById('btn-editor-open').addEventListener('click', openEditor);

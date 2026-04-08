@@ -2,18 +2,26 @@
 // TANK WARFARE — AI Controller (v3 Smart AI)
 // BFS pathfinding, obstacle avoidance, flanking, prediction
 // ============================================
-
+const { CONFIG, Vec2, MathUtil } = typeof window !== 'undefined' ? window : require('./utils.js');
 const AI_DIFFICULTY = {
     easy:   { accuracy: 0.30, reactionTime: 0.9, aimTolerance: 0.7,  dodgeChance: 0.15, shootRange: 350, label: '하', labelEn: 'EASY' },
     medium: { accuracy: 0.60, reactionTime: 0.4, aimTolerance: 0.35, dodgeChance: 0.55, shootRange: 450, label: '중', labelEn: 'MEDIUM' },
     hard:   { accuracy: 0.92, reactionTime: 0.08, aimTolerance: 0.12, dodgeChance: 0.92, shootRange: 600, label: '상', labelEn: 'HARD' }
 };
 
+const BOT_CLASSES = {
+    standard: { label: 'Standard', hpMult: 1.0, spdMult: 1.0, scale: 1.0 },
+    heavy:    { label: 'Heavy', hpMult: 2.0, spdMult: 0.6, scale: 1.25 },
+    scout:    { label: 'Scout', hpMult: 0.5, spdMult: 1.4, scale: 0.8 }
+};
+
 class AIController {
-    constructor(difficulty = 'medium') {
+    constructor(difficulty = 'medium', botClass = 'standard') {
         const diff = AI_DIFFICULTY[difficulty] || AI_DIFFICULTY.medium;
         Object.assign(this, diff);
         this.diffName = difficulty;
+        this.botClass = botClass;
+        this.state = 'AGGRESSIVE'; // AGGRESSIVE, DEFENSIVE, RELOAD_COVER
 
         // Targeting
         this.targetId = -1;
@@ -90,26 +98,61 @@ class AIController {
         const angleDiff = this._angleDiff(myTank.angle, angleToTarget);
         const hasLOS = this._hasLOS(myTank, target, gameMap);
 
+        // ---- State Machine Logic ----
+        const hpPct = myTank.hp / myTank.maxHp;
+        if (hpPct < 0.35) {
+            this.state = 'DEFENSIVE';
+        } else if (this.shootDelay > 0.5 && hasLOS && hpPct < 0.8) {
+            this.state = 'RELOAD_COVER';
+        } else {
+            this.state = 'AGGRESSIVE';
+        }
+
+        // Scout favors hit and run; Heavy favors straight pushing
+        if (this.botClass === 'scout' && this.shootDelay > 0) this.state = 'DEFENSIVE';
+        if (this.botClass === 'heavy') this.state = 'AGGRESSIVE'; 
+
         // ---- Dodge Bullets (highest priority) ----
         const dodgeResult = this._checkDodge(myTank, bullets);
         if (dodgeResult) {
             this._applyDodge(myTank, dodgeResult, input);
-            // Still try to shoot while dodging
             if (hasLOS) this._tryShoot(angleDiff, dist, input);
             return input;
         }
 
-        // ---- COMBAT: Has Line of Sight ----
-        if (hasLOS) {
-            this.path = []; // Clear path
-            this._combat(myTank, target, dist, angleToTarget, angleDiff, gameMap, input);
-        }
-        // ---- No LOS: Navigate Around Obstacles ----
-        else {
-            this._navigate(dt, myTank, target, dist, angleToTarget, angleDiff, gameMap, input);
+        // ---- Execution by State ----
+        if (this.state === 'RELOAD_COVER' || this.state === 'DEFENSIVE') {
+            // Flee or hide: move away from target or find cover
+            this._defensiveMove(dt, myTank, target, dist, angleToTarget, angleDiff, gameMap, input);
+        } else {
+            // AGGRESSIVE
+            if (hasLOS) {
+                this.path = [];
+                this._combat(myTank, target, dist, angleToTarget, angleDiff, gameMap, input);
+            } else {
+                this._navigate(dt, myTank, target, dist, angleToTarget, angleDiff, gameMap, input);
+            }
         }
 
         return input;
+    }
+
+    _defensiveMove(dt, myTank, target, dist, angleToTarget, angleDiff, gameMap, input) {
+        // Simple retreat: turn away and drive
+        const fleeAngle = angleToTarget + Math.PI;
+        const fleeDiff = this._angleDiff(myTank.angle, fleeAngle);
+
+        if (Math.abs(fleeDiff) > 0.2) {
+            input.left = fleeDiff < 0;
+            input.right = fleeDiff > 0;
+        }
+        input.up = true;
+        this._wallAvoidance(myTank, gameMap, input, fleeDiff);
+        
+        // Still shoot if looking at them while retreating
+        if (Math.abs(angleDiff) < this.aimTolerance && dist < this.shootRange) {
+            this._tryShoot(angleDiff, dist, input);
+        }
     }
 
     // =============== COMBAT (has LOS) ===============
@@ -470,4 +513,8 @@ class AIController {
         }
         return true;
     }
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { AIController, AI_DIFFICULTY, BOT_CLASSES };
 }

@@ -1,14 +1,17 @@
 const express = require('express');
 const cors = require('cors');
-const dotenv = require('dotenv');
+const http = require('http');
+const { Server } = require('socket.io');
 const { createFortemClient } = require('@fortemlabs/sdk-js');
 const { Pool } = require('pg');
 const crypto = require('crypto');
 const path = require('path');
-
-dotenv.config();
+const { ServerEngine } = require('./server_engine.js');
+require('dotenv').config();
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, { cors: { origin: '*' } });
 app.use(cors());
 app.use(express.json());
 
@@ -33,7 +36,10 @@ if (process.env.DATABASE_URL) {
             wallet_address VARCHAR(255) PRIMARY KEY,
             coins INT DEFAULT 500,
             shells JSONB DEFAULT '{}',
-            loadout JSONB DEFAULT '["standard", null, null, null, null]'
+            loadout JSONB DEFAULT '["standard", null, null, null, null]',
+            total_wins INT DEFAULT 0,
+            total_kills INT DEFAULT 0,
+            total_matches INT DEFAULT 0
         )
     `).then(() => console.log("DB 테이블 'users' 초기화 성공!"))
       .catch(e => console.error("DB 초기화 실패:", e));
@@ -103,7 +109,11 @@ app.post('/api/fortem/mint', async (req, res) => {
         res.json({ success: true, data: result.data, redeemCode });
     } catch (e) {
         console.error("[Mint Error]", e);
-        res.status(500).json({ success: false, message: e.message || 'ForTem minting failed' });
+        let message = e.message || 'ForTem minting failed';
+        if (message.includes('Recipient user is not a ForTem user')) {
+            message = 'Wallet not registered on ForTem Testnet. Please log in at https://testnet.fortem.gg first!';
+        }
+        res.status(500).json({ success: false, message });
     }
 });
 
@@ -150,7 +160,119 @@ app.post('/api/inventory/:wallet/save', async (req, res) => {
     }
 });
 
+// ==== STATS API ====
+app.get('/api/stats/:wallet', async (req, res) => {
+    const { wallet } = req.params;
+    if (!pool) return res.status(500).json({ success: false, message: 'DB Disconnected' });
+    
+    try {
+        const result = await pool.query(
+            `SELECT coins, total_wins, total_kills, total_matches FROM users WHERE wallet_address = $1`,
+            [wallet]
+        );
+        if (result.rows.length === 0) {
+            return res.json({ success: true, stats: { coins: 500, total_wins: 0, total_kills: 0, total_matches: 0 }});
+        }
+        res.json({ success: true, stats: result.rows[0] });
+    } catch (e) {
+        console.error("Stats Fetch Error:", e);
+        res.status(500).json({ success: false });
+    }
+});
+
+app.post('/api/stats/update', async (req, res) => {
+    const { walletAddress, isWin, kills } = req.body;
+    if (!pool || !walletAddress) return res.status(400).json({ success: false });
+
+    try {
+        await pool.query(
+            `UPDATE users 
+             SET total_matches = total_matches + 1,
+                 total_wins = total_wins + $1,
+                 total_kills = total_kills + $2
+             WHERE wallet_address = $3`,
+            [isWin ? 1 : 0, kills || 0, walletAddress]
+        );
+        res.json({ success: true });
+    } catch (e) {
+        console.error("Stats Update Error:", e);
+        res.status(500).json({ success: false });
+    }
+});
+
+// ==== MULTIPLAYER QUEUE (WIP) ====
+let mmQueue = []; // Matchmaking queue
+let activeRooms = {}; // Room state holder
+
+setInterval(() => {
+    // Only support 3v3 for now, meaning we need 6 players. 
+    // For testing/debugging gracefully, if less than 6 after some time, fill with bots.
+    // Let's implement 1v1 (2 players) for easier testing right now or filling with bots if 3v3.
+    // Assuming 3v3 mode requested:
+    const mode3v3Queue = mmQueue.filter(p => p.mode === '3v3');
+    if (mode3v3Queue.length >= 6) {
+        // Create 3v3 match
+        const players = mode3v3Queue.splice(0, 6);
+        mmQueue = mmQueue.filter(p => !players.map(pl => pl.id).includes(p.id));
+        createMatch(players, '3v3');
+    } else if (mode3v3Queue.length >= 1) { // DEBUG: allow starting immediately with bots if at least 1 player
+        // Create 3v3 match filled with bots
+        const players = mode3v3Queue.splice(0, mode3v3Queue.length);
+        mmQueue = mmQueue.filter(p => !players.map(pl => pl.id).includes(p.id));
+        createMatch(players, '3v3');
+    }
+}, 3000);
+
+function createMatch(players, mode) {
+    const roomId = 'room_' + crypto.randomUUID();
+    console.log(`Creating Match ${roomId} for mode ${mode} with ${players.length} human(s)`);
+    
+    players.forEach(p => p.socket.join(roomId));
+    
+    // Fill up to 6 players for 3v3
+    let setup = players.map((p, i) => ({ id: p.id, team: i % 2 === 0 ? 0 : 1, isHuman: true, loadout: p.loadout }));
+    while (setup.length < 6) {
+        setup.push({ id: 'bot_' + setup.length, team: setup.length % 2 === 0 ? 0 : 1, isHuman: false });
+    }
+
+    const engine = new ServerEngine(roomId, io, mode);
+    activeRooms[roomId] = engine;
+    
+    // Notify clients to transition to multiplayer mode
+    engine.io.to(roomId).emit('match_found', { roomId, setup, mapIndex: 0 });
+    
+    // Slight delay to allow clients to load map before starting ServerEngine logic
+    setTimeout(() => {
+        engine.init(setup, 0);
+    }, 2000);
+}
+
+io.on('connection', (socket) => {
+    console.log(`Socket connected: ${socket.id}`);
+
+    socket.on('join_queue', (data) => {
+        // data = { walletAddress, loadout, mode: '3v3' }
+        console.log(`Player ${socket.id} joining queue for ${data.mode}`);
+        mmQueue.push({ id: socket.id, socket, ...data });
+        socket.emit('queue_update', { position: mmQueue.length });
+    });
+    
+    socket.on('player_input', (data) => {
+        const { roomId, input } = data;
+        const room = activeRooms[roomId];
+        if (room) {
+            room.processInput(socket.id, input);
+        }
+    });
+
+    socket.on('disconnect', () => {
+        console.log(`Socket disconnected: ${socket.id}`);
+        mmQueue = mmQueue.filter(p => p.id !== socket.id);
+        // Also could handle dropping from active rooms, replacing with bot...
+    });
+});
+
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`🚀 서버 시작됨 (포트: ${PORT})`);
+server.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on port ${PORT}`);
 });

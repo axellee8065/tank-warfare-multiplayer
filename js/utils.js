@@ -145,3 +145,7 @@ const CONFIG = {
     PLAYER_COLORS: ['#00e5ff', '#4fc3f7', '#00bfa5', '#ff1744', '#ff5252', '#ff6e40'],
     TEAM_COLORS: { alpha: '#00e5ff', bravo: '#ff1744' },
 };
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { Vec2, AudioManager, ParticleSystem, CONFIG };
+}

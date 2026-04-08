@@ -1,6 +1,8 @@
 // ============================================
 // TANK WARFARE — Entities (Bullet, PowerUp, Tank)
 // ============================================
+const { CONFIG, Vec2, MathUtil } = typeof window !== 'undefined' ? window : require('./utils.js');
+const { SHELL_TYPES } = typeof window !== 'undefined' ? window : require('./shells.js');
 
 class Bullet {
     constructor(x, y, angle, owner, team, shellType) {
@@ -119,21 +121,30 @@ class PowerUp {
 }
 
 class Tank {
-    constructor(x, y, angle, index, team, isHuman) {
+    constructor(x, y, angle, index, team, isHuman, botClass = 'standard') {
         this.x = x; this.y = y;
         this.angle = angle;
         this.index = index;
         this.team = team;
         this.isHuman = isHuman;
-        this.hp = CONFIG.TANK_HP;
-        this.maxHp = CONFIG.TANK_HP;
+        
+        // Apply class modifiers
+        let hpMult = 1.0, spdMult = 1.0, scale = 1.0;
+        if (!isHuman && typeof BOT_CLASSES !== 'undefined' && BOT_CLASSES[botClass]) {
+            hpMult = BOT_CLASSES[botClass].hpMult;
+            spdMult = BOT_CLASSES[botClass].spdMult;
+            scale = BOT_CLASSES[botClass].scale;
+        }
+
+        this.hp = CONFIG.TANK_HP * hpMult;
+        this.maxHp = CONFIG.TANK_HP * hpMult;
         this.alive = true;
-        this.speed = CONFIG.TANK_SPEED;
+        this.speed = CONFIG.TANK_SPEED * spdMult;
         this.rotSpeed = CONFIG.TANK_ROT_SPEED;
         this.shootCooldown = 0;
         this.cooldownTime = CONFIG.SHOOT_COOLDOWN;
-        this.w = CONFIG.TANK_WIDTH;
-        this.h = CONFIG.TANK_HEIGHT;
+        this.w = CONFIG.TANK_WIDTH * scale;
+        this.h = CONFIG.TANK_HEIGHT * scale;
         this.color = CONFIG.PLAYER_COLORS[index] || '#ffffff';
         this.teamColor = team === 0 ? CONFIG.TEAM_COLORS.alpha : CONFIG.TEAM_COLORS.bravo;
         // Buffs
@@ -370,4 +381,8 @@ class Tank {
         const b = Math.max(0, (num & 0xff) - Math.round(255 * amount));
         return `rgb(${r},${g},${b})`;
     }
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { Tank, Bullet, PowerUp };
 }

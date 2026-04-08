@@ -1,6 +1,7 @@
 // ============================================
 // TANK WARFARE — Game Map
 // ============================================
+const { CONFIG } = typeof window !== 'undefined' ? window : require('./utils.js');
 
 const MAP_DATA = [
     {
@@ -294,4 +295,8 @@ class GameMap {
     reset() {
         for (const b of this.breakables) b.alive = true;
     }
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { GameMap, MAP_DATA };
 }

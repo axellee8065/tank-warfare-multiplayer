@@ -55,7 +55,103 @@ class GameEngine {
         this.map = new GameMap(mapIndex, this.canvas.width, this.canvas.height);
         this._createTanks(playerSetup);
         this._setupInput();
-        this.startRound();
+
+        if (this.gameType === 'online' && this.socket) {
+            this._setupSocketListeners();
+        } else {
+            this.startRound(); // Trigger local start
+        }
+    }
+
+    _setupSocketListeners() {
+        this.socket.on('round_start', (data) => {
+            console.log('Server round_start', data);
+            this.round = data.round;
+            this.bullets = [];
+            this.powerups = [];
+            this.roundOver = false;
+            this.gameOver = false;
+            this.gameActive = false;
+            this.map.reset();
+            this.audio.roundStart();
+            this._showBanner(`ROUND ${this.round}`, '준비!');
+            this._syncTanks(data.tanks);
+            setTimeout(() => {
+                this._hideBanner();
+                this.gameActive = true;
+                if (!this.running) this.start();
+            }, 1800);
+        });
+
+        this.socket.on('sync', (data) => {
+            if (!this.running || this.roundOver) return;
+            this._syncTanks(data.tanks);
+            this.bullets = data.bullets || [];
+            this.powerups = data.powerups || [];
+            if (data.breakables) {
+                // sync breakable states
+                for (let i = 0; i < this.map.breakables.length; i++) {
+                    const bw = this.map.breakables[i];
+                    bw.alive = data.breakables.some(db => db.col === bw.col && db.row === bw.row);
+                }
+            }
+        });
+
+        this.socket.on('sound', (data) => {
+            if (data.type === 'shoot') {
+                this.audio.shoot();
+                this.particles.emit(data.x, data.y, 5, { color: ['#ffaa00', '#fff'], speed: 80, life: 0.2, size: 2, angle: data.angle, spread: 0.5 });
+            } else if (data.type === 'hit') {
+                this.audio.hit();
+            } else if (data.type === 'explode') {
+                this.audio.explode();
+                this.shakeIntensity = 12;
+                this.particles.explosion(data.x, data.y, true);
+            } else if (data.type === 'powerup') {
+                this.audio.powerup();
+            }
+        });
+
+        this.socket.on('round_end', (data) => {
+            this.roundOver = true;
+            this.gameActive = false;
+            this.scores = data.scores;
+            this._updateHUD();
+            this._showBanner('OVER', data.winner === 'draw' ? 'DRAW!' : 'TEAM ' + data.winner.toUpperCase() + ' WIN!');
+            setTimeout(() => this._hideBanner(), 2500);
+        });
+
+        this.socket.on('game_over', (data) => {
+            this._syncTanks(data.tanks);
+            if (this.onGameEnd) {
+                this.onGameEnd(data.winner, data.scores, this.tanks);
+            }
+        });
+    }
+
+    _syncTanks(serverTanks) {
+        for (const st of serverTanks) {
+            const tk = this.tanks[st.id];
+            if (tk) {
+                if (tk.targetX === undefined) {
+                    tk.x = st.x; tk.targetX = st.x;
+                    tk.y = st.y; tk.targetY = st.y;
+                    tk.angle = st.angle; tk.targetAngle = st.angle;
+                } else {
+                    // Update Interpolation targets
+                    tk.targetX = st.x;
+                    tk.targetY = st.y;
+                    let diff = st.angle - tk.angle;
+                    // Normalize difference for shortest path Slerp
+                    while (diff < -Math.PI) diff += Math.PI * 2;
+                    while (diff > Math.PI) diff -= Math.PI * 2;
+                    tk.targetAngle = tk.angle + diff;
+                }
+                // Instant properties
+                tk.hp = st.hp; tk.maxHp = st.maxHp; tk.alive = st.alive;
+                tk.buffs = st.buffs; tk.stats = st.stats;
+            }
+        }
     }
 
     _createTanks(playerSetup) {
@@ -69,10 +165,17 @@ class GameEngine {
             // Face toward map center (diagonal corners)
             const cx = this.canvas.width / 2, cy = this.canvas.height / 2;
             const angle = Math.atan2(cy - sp.y, cx - sp.x);
-            const tank = new Tank(sp.x, sp.y, angle, i, p.team, p.isHuman);
+            let botClass = 'standard';
+            if (!p.isHuman) {
+                const rnd = Math.random();
+                if (rnd < 0.3) botClass = 'scout';
+                else if (rnd < 0.6) botClass = 'heavy';
+            }
+
+            const tank = new Tank(sp.x, sp.y, angle, i, p.team, p.isHuman, botClass);
             this.tanks.push(tank);
             if (!p.isHuman) {
-                this.aiControllers.push(new AIController(this.aiDifficulty));
+                this.aiControllers.push(new AIController(this.aiDifficulty, botClass));
             } else {
                 this.aiControllers.push(null);
                 // Link shell inventory to human tanks
@@ -239,11 +342,73 @@ class GameEngine {
         const now = performance.now();
         const dt = Math.min((now - this.lastTime) / 1000, 0.05);
         this.lastTime = now;
-        if (!this.paused && !this.roundOver) {
-            this._update(dt);
+        
+        if (this.gameType === 'online') {
+            this._updateOnline(dt);
+        } else {
+            if (!this.paused && !this.roundOver) {
+                this._update(dt);
+            }
         }
+        
         this._draw();
         this.animFrameId = requestAnimationFrame(() => this._loop());
+    }
+
+    _updateOnline(dt) {
+        if (!this.gameActive) return;
+        this.gameTime += dt;
+        
+        const myIndex = this.tanks.findIndex(t => t.isHuman);
+        if (myIndex !== -1 && this.socket) {
+            const input = this._getHumanInput(myIndex);
+            
+            // Mouse/touch aim overrides
+            if (this.touchControls && this.touchControls.active) {
+                const joy = this.touchControls.getJoystick();
+                if (joy.active) input.angle = joy.angle;
+            } else if (this.mouseX !== undefined && this.mouseY !== undefined) {
+                const cx = this.canvas.width / 2;
+                const cy = this.canvas.height / 2;
+                input.angle = Math.atan2(this.mouseY - cy, this.mouseX - cx);
+            }
+            
+            // Only send if changed, or throttle? For now send at high rate
+            this.socket.emit('player_input', { roomId: this.roomId, input });
+        }
+        
+        // INTERPOLATION for Tanks
+        const LERP_SPEED = 15; // smooth factor, covers 24% at 60Hz per frame
+        for (const tank of this.tanks) {
+            if (!tank.alive || tank.targetX === undefined) continue;
+            const factor = Math.min(LERP_SPEED * dt, 1.0);
+            
+            tank.x += (tank.targetX - tank.x) * factor;
+            tank.y += (tank.targetY - tank.y) * factor;
+            tank.angle += (tank.targetAngle - tank.angle) * factor;
+            
+            // Keep drawing angle normalized
+            while (tank.angle < -Math.PI) tank.angle += Math.PI * 2;
+            while (tank.angle > Math.PI) tank.angle -= Math.PI * 2;
+        }
+
+        // KINEMATIC INTEGRATION for Bullets
+        for (const b of this.bullets) {
+            if (b.vx !== undefined && b.vy !== undefined) {
+                b.x += b.vx * dt;
+                b.y += b.vy * dt;
+            }
+        }
+        
+        this.particles.update(dt);
+        if (this.shakeIntensity > 0) {
+            this.shakeX = (Math.random() - 0.5) * this.shakeIntensity;
+            this.shakeY = (Math.random() - 0.5) * this.shakeIntensity;
+            this.shakeIntensity *= 0.88;
+            if (this.shakeIntensity < 0.5) this.shakeIntensity = 0;
+        } else { this.shakeX = this.shakeY = 0; }
+        
+        this._updateHUD();
     }
 
     _update(dt) {
