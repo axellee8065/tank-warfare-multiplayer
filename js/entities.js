@@ -1,8 +1,6 @@
 // ============================================
 // TANK WARFARE — Entities (Bullet, PowerUp, Tank)
 // ============================================
-const { CONFIG, Vec2, MathUtil } = typeof window !== 'undefined' ? window : require('./utils.js');
-const { SHELL_TYPES } = typeof window !== 'undefined' ? window : require('./shells.js');
 
 class Bullet {
     constructor(x, y, angle, owner, team, shellType) {

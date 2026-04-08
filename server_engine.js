@@ -1,7 +1,27 @@
-const { Vec2, CONFIG } = require('./js/utils.js');
-const { GameMap, MAP_DATA } = require('./js/map.js');
-const { Tank, Bullet, PowerUp } = require('./js/entities.js');
-const { AIController } = require('./js/ai.js');
+const utils = require('./js/utils.js');
+global.CONFIG = utils.CONFIG;
+global.Vec2 = utils.Vec2;
+global.MathUtil = utils.MathUtil || {
+    clamp: (v, min, max) => Math.max(min, Math.min(max, v)),
+    lerp: (a, b, t) => a + (b - a) * t
+};
+global.ParticleSystem = utils.ParticleSystem;
+global.AudioManager = utils.AudioManager;
+
+const shells = require('./js/shells.js');
+global.SHELL_TYPES = shells.SHELL_TYPES;
+
+const map = require('./js/map.js');
+global.GameMap = map.GameMap;
+global.MAP_DATA = map.MAP_DATA;
+
+const entities = require('./js/entities.js');
+global.Tank = entities.Tank;
+global.Bullet = entities.Bullet;
+global.PowerUp = entities.PowerUp;
+
+const ai = require('./js/ai.js');
+global.AIController = ai.AIController || ai;
 
 class ServerEngine {
     constructor(roomId, io, mode = '1v1') {

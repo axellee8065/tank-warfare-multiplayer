@@ -1,7 +1,6 @@
 // ============================================
 // TANK WARFARE — Game Map
 // ============================================
-const { CONFIG } = typeof window !== 'undefined' ? window : require('./utils.js');
 
 const MAP_DATA = [
     {

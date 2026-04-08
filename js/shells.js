@@ -1,7 +1,6 @@
 // ============================================
 // TANK WARFARE — Shell System & Economy
 // ============================================
-const { CONFIG } = typeof window !== 'undefined' ? window : require('./utils.js');
 
 const SHELL_TYPES = {
     standard: {
