@@ -86,8 +86,13 @@ class GameEngine {
         this.socket.on('sync', (data) => {
             if (!this.running || this.roundOver) return;
             this._syncTanks(data.tanks);
-            this.bullets = data.bullets || [];
-            this.powerups = data.powerups || [];
+            this.bullets = (data.bullets || []).map(b => {
+                const bullet = new Bullet(b.x, b.y, b.angle, null, b.team, b.shellType);
+                bullet.vx = b.vx;
+                bullet.vy = b.vy;
+                return bullet;
+            });
+            this.powerups = (data.powerups || []).map(pu => new PowerUp(pu.x, pu.y, pu.type));
             if (data.breakables) {
                 // sync breakable states
                 for (let i = 0; i < this.map.breakables.length; i++) {
