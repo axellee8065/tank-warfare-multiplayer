@@ -202,7 +202,7 @@
 
     function startMatchmaking(mode) {
         if (!window.socket) {
-            window.socket = io('http://localhost:3000');
+            window.socket = io(window.location.origin);
             
             window.socket.on('queue_update', (d) => {
                 document.getElementById('queue-status').textContent = `Queue Position: ${d.position}`;
