@@ -128,6 +128,7 @@ class ParticleSystem {
 
 // ---- CONFIG ----
 const CONFIG = {
+    LERP_SPEED: 15,
     TANK_SPEED: 150,
     TANK_ROT_SPEED: 3,
     TANK_HP: 100,

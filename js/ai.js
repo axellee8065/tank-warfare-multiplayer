@@ -2,7 +2,6 @@
 // TANK WARFARE — AI Controller (v3 Smart AI)
 // BFS pathfinding, obstacle avoidance, flanking, prediction
 // ============================================
-const { CONFIG, Vec2, MathUtil } = typeof window !== 'undefined' ? window : {};
 const AI_DIFFICULTY = {
     easy:   { accuracy: 0.30, reactionTime: 0.9, aimTolerance: 0.7,  dodgeChance: 0.15, shootRange: 350, label: '하', labelEn: 'EASY' },
     medium: { accuracy: 0.60, reactionTime: 0.4, aimTolerance: 0.35, dodgeChance: 0.55, shootRange: 450, label: '중', labelEn: 'MEDIUM' },
