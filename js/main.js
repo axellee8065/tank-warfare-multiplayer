@@ -15,6 +15,7 @@
     let touchCtrl = null;
     let customMaps = MapEditor.loadCustomMaps();
     let allMaps = [];
+    let currentLobby = null;
 
     // ---- Shell Inventory ----
     const shellInv = new ShellInventory();
@@ -182,15 +183,13 @@
 
     function openModeScreen(type) {
         gameType = type;
-        if (type === 'online') {
-            // Bypass wallet for debug testing
-            startMatchmaking('3v3');
-            return;
-        }
-
         const diffSection = document.getElementById('difficulty-section');
         const title = document.getElementById('mode-screen-title');
-        if (type === 'vsbot') {
+        
+        if (type === 'online') {
+            diffSection.classList.add('hidden');
+            title.innerHTML = 'MULTI <span class="title-ko">멀티플레이</span>';
+        } else if (type === 'vsbot') {
             diffSection.classList.remove('hidden');
             title.innerHTML = 'VS BOT <span class="title-ko">봇 대전</span>';
         } else {
@@ -201,53 +200,65 @@
     }
 
     function startMatchmaking(mode) {
-        if (!window.socket) {
-            window.socket = io(window.location.origin);
-            
-            window.socket.on('queue_update', (d) => {
-                document.getElementById('queue-status').textContent = `Queue Position: ${d.position}`;
-            });
-            
-            window.socket.on('match_found', (d) => {
-                console.log("MATCH FOUND!", d);
-                playerSetup = d.setup;
-                selectedMap = d.mapIndex;
-                selectedMode = mode;
-                
-                showScreen('game-screen');
-                const canvas = document.getElementById('game-canvas');
-                if (engine) engine.stop();
-
-                if (!touchCtrl) touchCtrl = new TouchControls();
-                if (isTouchDevice) touchCtrl.show();
-                else touchCtrl.hide();
-
-                engine = new GameEngine(canvas);
-                engine.shellInventory = shellInv;
-                // Add online overrides
-                engine.socket = window.socket;
-                engine.roomId = d.roomId;
-                
-                engine.init(selectedMode, playerSetup, selectedMap, 'medium', 'online', touchCtrl);
-                engine.onGameEnd = (winTeam, scores, tanks) => showResultScreen(winTeam, scores, tanks);
-                // The engine won't start local tick loop, but rather binds to socket in engine.js
-            });
+        if (window.socket) {
+            window.socket.emit('leave_lobby');
+            window.socket.disconnect();
+            window.socket = null;
         }
+
+        window.socket = io(window.location.origin);
         
-        window.socket.emit('join_queue', {
+        window.socket.on('lobby_sync', (lobby) => {
+            currentLobby = lobby;
+            selectedMode = lobby.mode;
+            selectedMap = lobby.mapIndex; // Sync map from host
+            renderSlots();
+            
+            if (currentScreen === 'matchmaking-screen') {
+                showScreen('setup-screen');
+            }
+        });
+        
+        window.socket.on('match_found', (d) => {
+            console.log("MATCH FOUND!", d);
+            playerSetup = d.setup;
+            selectedMap = d.mapIndex;
+            selectedMode = mode;
+            
+            showScreen('game-screen');
+            const canvas = document.getElementById('game-canvas');
+            if (engine) engine.stop();
+
+            if (!touchCtrl) touchCtrl = new TouchControls();
+            if (isTouchDevice) touchCtrl.show();
+            else touchCtrl.hide();
+
+            engine = new GameEngine(canvas);
+            engine.shellInventory = shellInv;
+            engine.socket = window.socket;
+            engine.roomId = d.roomId;
+            
+            engine.init(selectedMode, playerSetup, selectedMap, 'medium', 'online', touchCtrl);
+            engine.onGameEnd = (winTeam, scores, tanks) => showResultScreen(winTeam, scores, tanks);
+        });
+        
+        window.socket.emit('join_lobby', {
             walletAddress: walletMgr.address,
             loadout: shellInv.loadout,
             mode: mode
         });
         
-        document.getElementById('queue-status').textContent = 'Joining Queue...';
+        document.getElementById('queue-status').textContent = 'Joining Lobby...';
         showScreen('matchmaking-screen');
     }
 
     document.getElementById('btn-cancel-queue').addEventListener('click', () => {
-        if (window.socket) window.socket.disconnect();
-        window.socket = null;
-        showScreen('main-screen');
+        if (window.socket) {
+            window.socket.emit('leave_queue');
+            window.socket.disconnect();
+            window.socket = null;
+        }
+        showScreen('title-screen');
     });
 
     function selectMode(mode) {
@@ -255,6 +266,12 @@
         document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('selected'));
         const el = document.querySelector(`.mode-card[data-mode="${mode}"]`);
         if (el) el.classList.add('selected');
+
+        if (gameType === 'online') {
+            startMatchmaking(mode);
+            return;
+        }
+
         if (gameType === 'vsbot') buildVsBotSetup();
         else buildPvpSetup();
         showScreen('setup-screen');
@@ -290,6 +307,44 @@
         const bravoSlots = document.getElementById('team-bravo-slots');
         alphaSlots.innerHTML = '';
         bravoSlots.innerHTML = '';
+
+        if (gameType === 'online' && currentLobby) {
+            const ppt = getPlayersPerTeam();
+            for (let i = 0; i < ppt * 2; i++) {
+                const team = i < ppt ? 0 : 1;
+                const slot = document.createElement('div');
+                slot.className = 'player-slot';
+                
+                const p = currentLobby.players[i];
+                if (p) {
+                    const isMe = p.id === window.socket.id;
+                    const readyIcon = p.ready ? '✅' : '⏳';
+                    const name = p.walletAddress ? walletMgr.shortAddress(p.walletAddress) : `P${i+1}`;
+                    slot.innerHTML = `
+                        <span class="slot-label">${name} ${isMe ? '(You)' : ''}</span>
+                        <div class="slot-toggle ai" style="color:${p.ready ? '#00e5ff' : '#ffaa00'}">${readyIcon}</div>
+                    `;
+                } else {
+                    slot.innerHTML = `
+                        <span class="slot-label">Empty</span>
+                        <div class="slot-toggle ai" style="color:#666">...</div>
+                    `;
+                }
+                
+                if (team === 0) alphaSlots.appendChild(slot);
+                else bravoSlots.appendChild(slot);
+            }
+            
+            const btnBattle = document.getElementById('btn-battle');
+            const isHost = currentLobby.host === window.socket.id;
+            const myPlayer = currentLobby.players.find(p => p.id === window.socket.id);
+            const myReady = myPlayer ? myPlayer.ready : false;
+
+            btnBattle.innerHTML = `<span class="btn-icon"></span> ${isHost && myReady ? 'START!' : (myReady ? 'READY ✅' : 'READY')}`;
+            
+            buildMapSelect();
+            return;
+        }
 
         for (let i = 0; i < playerSetup.length; i++) {
             const p = playerSetup[i];
@@ -336,6 +391,12 @@
                 <div class="map-card-name">${m.name} <span style="color:var(--text-muted);font-weight:400;font-size:0.5rem">${m.nameKo || ''}</span></div>
             `;
             card.addEventListener('click', () => {
+                if (gameType === 'online') {
+                    if (currentLobby && currentLobby.host === window.socket.id) {
+                         window.socket.emit('select_map', { mapIndex: i });
+                    }
+                    return;
+                }
                 selectedMap = i;
                 document.querySelectorAll('.map-card').forEach(c => c.classList.remove('selected'));
                 card.classList.add('selected');
@@ -344,12 +405,13 @@
             setTimeout(() => drawMiniMap(i), 50);
         });
 
-        // Add new map card
-        const nc = document.createElement('div');
-        nc.className = 'map-card new-map-card';
-        nc.innerHTML = `<div class="new-map-icon">➕</div><div class="new-map-label">EDITOR</div>`;
-        nc.addEventListener('click', openEditor);
-        container.appendChild(nc);
+        if (gameType !== 'online') {
+            const nc = document.createElement('div');
+            nc.className = 'map-card new-map-card';
+            nc.innerHTML = `<div class="new-map-icon">➕</div><div class="new-map-label">EDITOR</div>`;
+            nc.addEventListener('click', openEditor);
+            container.appendChild(nc);
+        }
     }
 
     function drawMiniMap(idx) {
@@ -696,19 +758,48 @@
         });
     });
 
-    document.getElementById('btn-battle').addEventListener('click', startGame);
+    document.getElementById('btn-battle').addEventListener('click', () => {
+        if (gameType === 'online') {
+            if (currentLobby) {
+                const isHost = currentLobby.host === window.socket.id;
+                const myPlayer = currentLobby.players.find(p => p.id === window.socket.id);
+                if (isHost && myPlayer && myPlayer.ready) {
+                    window.socket.emit('start_match');
+                } else {
+                    window.socket.emit('toggle_ready', { ready: myPlayer ? !myPlayer.ready : true });
+                }
+            }
+            return;
+        }
+        startGame();
+    });
 
     document.getElementById('btn-resume').addEventListener('click', () => { if (engine) engine.togglePause(); });
     document.getElementById('btn-quit').addEventListener('click', () => {
         if (engine) { engine.stop(); engine = null; }
         if (touchCtrl) touchCtrl.hide();
+        if (window.socket) {
+            window.socket.disconnect();
+            window.socket = null;
+        }
         document.getElementById('pause-overlay').classList.add('hidden');
         showScreen('title-screen');
     });
 
-    document.getElementById('btn-rematch').addEventListener('click', startGame);
+    document.getElementById('btn-rematch').addEventListener('click', () => {
+        if (gameType === 'online') {
+            startMatchmaking(selectedMode);
+        } else {
+            startGame();
+        }
+    });
+
     document.getElementById('btn-menu').addEventListener('click', () => {
         if (engine) { engine.stop(); engine = null; }
+        if (window.socket) {
+            window.socket.disconnect();
+            window.socket = null;
+        }
         showScreen('title-screen');
     });
 

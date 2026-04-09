@@ -67,6 +67,12 @@ class GameEngine {
     }
 
     _setupSocketListeners() {
+        this.socket.off('round_start');
+        this.socket.off('sync');
+        this.socket.off('sound');
+        this.socket.off('round_end');
+        this.socket.off('game_over');
+
         this.socket.on('round_start', (data) => {
             console.log('Server round_start', data);
             this.round = data.round;

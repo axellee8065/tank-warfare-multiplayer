@@ -200,63 +200,159 @@ app.post('/api/stats/update', async (req, res) => {
     }
 });
 
-// ==== MULTIPLAYER QUEUE (WIP) ====
-let mmQueue = []; // Matchmaking queue
-let activeRooms = {}; // Room state holder
+// ==== MULTIPLAYER LOBBY & MATCMAKING ====
+let lobbies = []; // Available waiting rooms
+let activeRooms = {}; // Running game rooms
 
-setInterval(() => {
-    // Only support 3v3 for now, meaning we need 6 players. 
-    // For testing/debugging gracefully, if less than 6 after some time, fill with bots.
-    // Let's implement 1v1 (2 players) for easier testing right now or filling with bots if 3v3.
-    // Assuming 3v3 mode requested:
-    const mode3v3Queue = mmQueue.filter(p => p.mode === '3v3');
-    if (mode3v3Queue.length >= 6) {
-        // Create 3v3 match
-        const players = mode3v3Queue.splice(0, 6);
-        mmQueue = mmQueue.filter(p => !players.map(pl => pl.id).includes(p.id));
-        createMatch(players, '3v3');
-    } else if (mode3v3Queue.length >= 1) { // DEBUG: allow starting immediately with bots if at least 1 player
-        // Create 3v3 match filled with bots
-        const players = mode3v3Queue.splice(0, mode3v3Queue.length);
-        mmQueue = mmQueue.filter(p => !players.map(pl => pl.id).includes(p.id));
-        createMatch(players, '3v3');
+function getPlayersCount(mode) {
+    if (mode === '1v1') return 2;
+    if (mode === '2v2') return 4;
+    return 6; // 3v3 default
+}
+
+function broadcastLobbySync(lobby) {
+    const syncData = {
+        id: lobby.id,
+        mode: lobby.mode,
+        host: lobby.host,
+        mapIndex: lobby.mapIndex,
+        players: lobby.players.map(p => ({
+            id: p.id,
+            walletAddress: p.walletAddress,
+            ready: p.ready
+        }))
+    };
+    io.to(lobby.id).emit('lobby_sync', syncData);
+}
+
+function handleLeaveLobby(socket) {
+    if (!socket.lobbyId) return;
+    const lobby = lobbies.find(l => l.id === socket.lobbyId);
+    if (lobby) {
+        lobby.players = lobby.players.filter(p => p.id !== socket.id);
+        socket.leave(lobby.id);
+        socket.lobbyId = null;
+        
+        if (lobby.players.length === 0) {
+            lobbies = lobbies.filter(l => l.id !== lobby.id);
+        } else {
+            if (lobby.host === socket.id) {
+                lobby.host = lobby.players[0].id;
+            }
+            broadcastLobbySync(lobby);
+        }
     }
-}, 3000);
+}
 
-function createMatch(players, mode) {
-    const roomId = 'room_' + crypto.randomUUID();
-    console.log(`Creating Match ${roomId} for mode ${mode} with ${players.length} human(s)`);
+function createMatchFromLobby(lobby) {
+    const mode = lobby.mode;
+    const roomId = lobby.id;
     
-    players.forEach(p => p.socket.join(roomId));
+    let setup = [];
+    const maxPlayers = getPlayersCount(mode);
+    const ppt = maxPlayers / 2;
     
-    // Fill up to 6 players for 3v3
-    let setup = players.map((p, i) => ({ id: p.id, team: i % 2 === 0 ? 0 : 1, isHuman: true, loadout: p.loadout }));
-    while (setup.length < 6) {
-        setup.push({ id: 'bot_' + setup.length, team: setup.length % 2 === 0 ? 0 : 1, isHuman: false });
+    let alphaCount = 0;
+    let bravoCount = 0;
+    
+    lobby.players.forEach(p => {
+        const team = (alphaCount <= bravoCount && alphaCount < ppt) ? 0 : 1;
+        if (team === 0) alphaCount++; else bravoCount++;
+        setup.push({
+            id: p.id,
+            team: team,
+            isHuman: true,
+            loadout: p.loadout
+        });
+    });
+    
+    while (setup.length < maxPlayers) {
+        const team = (alphaCount <= bravoCount && alphaCount < ppt) ? 0 : 1;
+        if (team === 0) alphaCount++; else bravoCount++;
+        setup.push({ id: 'bot_' + setup.length, team: team, isHuman: false });
     }
-
+    
+    lobbies = lobbies.filter(l => l.id !== lobby.id);
+    
     const engine = new ServerEngine(roomId, io, mode);
     activeRooms[roomId] = engine;
     
-    // Notify clients to transition to multiplayer mode
-    engine.io.to(roomId).emit('match_found', { roomId, setup, mapIndex: 0 });
+    io.to(roomId).emit('match_found', { roomId, setup, mapIndex: lobby.mapIndex });
     
-    // Slight delay to allow clients to load map before starting ServerEngine logic
     setTimeout(() => {
-        engine.init(setup, 0);
+        engine.init(setup, lobby.mapIndex);
     }, 2000);
 }
 
 io.on('connection', (socket) => {
     console.log(`Socket connected: ${socket.id}`);
 
-    socket.on('join_queue', (data) => {
-        // data = { walletAddress, loadout, mode: '3v3' }
-        console.log(`Player ${socket.id} joining queue for ${data.mode}`);
-        mmQueue.push({ id: socket.id, socket, ...data });
-        socket.emit('queue_update', { position: mmQueue.length });
+    socket.on('join_lobby', (data) => {
+        console.log(`Player ${socket.id} joining lobby for ${data.mode}`);
+        
+        let lobby = lobbies.find(l => l.mode === data.mode && l.players.length < getPlayersCount(data.mode));
+        
+        if (!lobby) {
+            lobby = {
+                id: 'lobby_' + crypto.randomUUID(),
+                mode: data.mode,
+                host: socket.id,
+                players: [],
+                mapIndex: 0
+            };
+            lobbies.push(lobby);
+        }
+
+        lobby.players.push({
+            id: socket.id,
+            socket,
+            walletAddress: data.walletAddress,
+            loadout: data.loadout,
+            ready: false
+        });
+        
+        socket.join(lobby.id);
+        socket.lobbyId = lobby.id;
+
+        broadcastLobbySync(lobby);
     });
     
+    socket.on('leave_lobby', () => {
+        handleLeaveLobby(socket);
+    });
+
+    socket.on('toggle_ready', (data) => {
+        if (!socket.lobbyId) return;
+        const lobby = lobbies.find(l => l.id === socket.lobbyId);
+        if (lobby) {
+            const player = lobby.players.find(p => p.id === socket.id);
+            if (player) {
+                player.ready = data.ready;
+                broadcastLobbySync(lobby);
+            }
+        }
+    });
+
+    socket.on('select_map', (data) => {
+        if (!socket.lobbyId) return;
+        const lobby = lobbies.find(l => l.id === socket.lobbyId);
+        if (lobby && lobby.host === socket.id) {
+            lobby.mapIndex = data.mapIndex;
+            broadcastLobbySync(lobby);
+        }
+    });
+
+    socket.on('start_match', () => {
+        if (!socket.lobbyId) return;
+        const lobby = lobbies.find(l => l.id === socket.lobbyId);
+        if (lobby && lobby.host === socket.id) {
+            const allReady = lobby.players.every(p => p.id === lobby.host || p.ready);
+            if (allReady) {
+                createMatchFromLobby(lobby);
+            }
+        }
+    });
+
     socket.on('player_input', (data) => {
         const { roomId, input } = data;
         const room = activeRooms[roomId];
@@ -267,8 +363,7 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
         console.log(`Socket disconnected: ${socket.id}`);
-        mmQueue = mmQueue.filter(p => p.id !== socket.id);
-        // Also could handle dropping from active rooms, replacing with bot...
+        handleLeaveLobby(socket);
     });
 });
 
