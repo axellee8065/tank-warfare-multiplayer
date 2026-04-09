@@ -84,7 +84,20 @@ class GameEngine {
             this.map.reset();
             this.audio.roundStart();
             this._showBanner(`ROUND ${this.round}`, '준비!');
-            this._syncTanks(data.tanks);
+            
+            // Forcible Sync: At the start of a round, the Server's randomized spawn coordinates 
+            // MUST rigidly overwrite local prediction targets to prevent Anti-Cheat desyncs.
+            for (const st of data.tanks) {
+                const tk = this.tanks[st.id];
+                if (tk) {
+                    tk.x = st.x; tk.targetX = st.x;
+                    tk.y = st.y; tk.targetY = st.y;
+                    tk.angle = st.angle; tk.targetAngle = st.angle;
+                    tk.hp = st.hp; tk.maxHp = st.maxHp; tk.alive = st.alive;
+                    tk.buffs = st.buffs; tk.stats = st.stats;
+                }
+            }
+            
             setTimeout(() => {
                 this._hideBanner();
                 this.gameActive = true;
@@ -669,6 +682,8 @@ class GameEngine {
     }
 
     _checkRoundEnd() {
+        if (this.gameType === 'online') return; // Server entirely handles round phases
+
         const alphaAlive = this.tanks.filter(t => t.team === 0 && t.alive).length;
         const bravoAlive = this.tanks.filter(t => t.team === 1 && t.alive).length;
 
