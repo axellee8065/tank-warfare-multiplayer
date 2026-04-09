@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tank-warfare-v4';
+const CACHE_NAME = 'tank-warfare-v5';
 const ASSETS = ['/', '/index.html', '/style.css', '/js/utils.js', '/js/shells.js', '/js/entities.js', '/js/ai.js', '/js/map.js', '/js/engine.js', '/js/editor.js', '/js/touch.js', '/js/wallet.js', '/js/main.js'];
 
 self.addEventListener('install', e => {
