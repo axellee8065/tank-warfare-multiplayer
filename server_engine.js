@@ -154,11 +154,21 @@ class ServerEngine {
                 // Process timers (buffs, cooldowns) but discard local dx/dy
                 const movement = tank.update(dt, input);
                 
-                // Client-Authoritative position mapping
+                // Client-Authoritative position with Anti-Cheat (Speed Validation)
                 if (input.clientPos && !this.roundOver) {
-                    tank.x = input.clientPos.x;
-                    tank.y = input.clientPos.y;
-                    tank.angle = input.clientPos.angle;
+                    const dist = Math.hypot(input.clientPos.x - tank.x, input.clientPos.y - tank.y);
+                    // Server checks if the distance jumped is mathematically impossible (speedhack/teleport hack)
+                    // We allow a 3.0x tolerance multiplier for normal internet lag spikes
+                    const maxAllowedDist = tank.speed * dt * 3.0;
+                    
+                    if (dist <= maxAllowedDist) {
+                        tank.x = input.clientPos.x;
+                        tank.y = input.clientPos.y;
+                        tank.angle = input.clientPos.angle;
+                    } else {
+                        // Abusing detected! Ignore hacked position, do not update (forces rubberband on client)
+                        console.log(`[Anti-Cheat] Player ${i} moved too fast! dist: ${dist}, max: ${maxAllowedDist}`);
+                    }
                 } else if (input.angle !== undefined) {
                     tank.angle = input.angle;
                 }
