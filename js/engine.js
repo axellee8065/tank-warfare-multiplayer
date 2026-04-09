@@ -144,24 +144,34 @@ class GameEngine {
     }
 
     _syncTanks(serverTanks) {
+        const myIndex = this.tanks.findIndex(t => t.isHuman);
+
         for (const st of serverTanks) {
             const tk = this.tanks[st.id];
             if (tk) {
-                if (tk.targetX === undefined) {
-                    tk.x = st.x; tk.targetX = st.x;
-                    tk.y = st.y; tk.targetY = st.y;
-                    tk.angle = st.angle; tk.targetAngle = st.angle;
+                if (st.id === myIndex && this.gameType === 'online') {
+                    // Local tank: Server authority only for stats, soft snap for large divergence
+                    const dist = Math.hypot(tk.x - st.x, tk.y - st.y);
+                    if (dist > 40) {
+                        tk.x = st.x; tk.y = st.y; 
+                    }
                 } else {
-                    // Update Interpolation targets
-                    tk.targetX = st.x;
-                    tk.targetY = st.y;
-                    let diff = st.angle - tk.angle;
-                    // Normalize difference for shortest path Slerp
-                    while (diff < -Math.PI) diff += Math.PI * 2;
-                    while (diff > Math.PI) diff -= Math.PI * 2;
-                    tk.targetAngle = tk.angle + diff;
+                    if (tk.targetX === undefined) {
+                        tk.x = st.x; tk.targetX = st.x;
+                        tk.y = st.y; tk.targetY = st.y;
+                        tk.angle = st.angle; tk.targetAngle = st.angle;
+                    } else {
+                        // Update Interpolation targets
+                        tk.targetX = st.x;
+                        tk.targetY = st.y;
+                        let diff = st.angle - tk.angle;
+                        // Normalize difference for shortest path Slerp
+                        while (diff < -Math.PI) diff += Math.PI * 2;
+                        while (diff > Math.PI) diff -= Math.PI * 2;
+                        tk.targetAngle = tk.angle + diff;
+                    }
                 }
-                // Instant properties
+                // Instant properties for everyone
                 tk.hp = st.hp; tk.maxHp = st.maxHp; tk.alive = st.alive;
                 tk.buffs = st.buffs; tk.stats = st.stats;
             }
@@ -268,14 +278,15 @@ class GameEngine {
             };
         }
 
-        // PVP: P1 = WASD+Space, P2 = Arrows+Slash
+        // PVP: P1 = WASD+Space or Arrows+Space, P2 = Arrows+Slash
         if (humanIdx === 0) {
             return {
-                up: ks['KeyW'] || false,
-                down: ks['KeyS'] || false,
-                left: ks['KeyA'] || false,
-                right: ks['KeyD'] || false,
-                shoot: ks['Space'] || false
+                up: ks['ArrowUp'] || ks['KeyW'] || false,
+                down: ks['ArrowDown'] || ks['KeyS'] || false,
+                left: ks['ArrowLeft'] || ks['KeyA'] || false,
+                right: ks['ArrowRight'] || ks['KeyD'] || false,
+                shoot: ks['Space'] || false,
+                shellSlot
             };
         } else if (humanIdx === 1) {
             return {
@@ -283,7 +294,8 @@ class GameEngine {
                 down: ks['ArrowDown'] || false,
                 left: ks['ArrowLeft'] || false,
                 right: ks['ArrowRight'] || false,
-                shoot: ks['Slash'] || ks['Period'] || ks['ShiftRight'] || false
+                shoot: ks['Slash'] || ks['Period'] || ks['ShiftRight'] || false,
+                shellSlot
             };
         }
         return { up: false, down: false, left: false, right: false, shoot: false };
@@ -389,11 +401,34 @@ class GameEngine {
             
             // Only send if changed, or throttle? For now send at high rate
             this.socket.emit('player_input', { roomId: this.roomId, input });
+            
+            // Client-Side Prediction: Move instantly to remove "late" feeling
+            const localTank = this.tanks[myIndex];
+            if (localTank && localTank.alive) {
+                const movement = localTank.update(dt, input);
+                if (movement) {
+                    localTank.applyMove(movement.dx, 0);
+                    this.map.resolveCollision(localTank);
+                    this._resolveTankCollisions(localTank);
+
+                    localTank.applyMove(0, movement.dy);
+                    this.map.resolveCollision(localTank);
+                    this._resolveTankCollisions(localTank);
+                    
+                    if (Math.abs(movement.dx) > 0.5 || Math.abs(movement.dy) > 0.5) {
+                        this.particles.trail(localTank.x, localTank.y, localTank.teamColor);
+                    }
+                }
+            }
         }
         
-        // INTERPOLATION for Tanks
+        // INTERPOLATION for other Tanks
         const LERP_SPEED = 15; // smooth factor, covers 24% at 60Hz per frame
-        for (const tank of this.tanks) {
+        for (let i = 0; i < this.tanks.length; i++) {
+            const tank = this.tanks[i];
+            // Skip interpolation for local player!
+            if (i === myIndex && this.gameType === 'online') continue;
+            
             if (!tank.alive || tank.targetX === undefined) continue;
             const factor = Math.min(LERP_SPEED * dt, 1.0);
             
