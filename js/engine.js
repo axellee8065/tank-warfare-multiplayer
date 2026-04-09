@@ -144,7 +144,9 @@ class GameEngine {
     }
 
     _syncTanks(serverTanks) {
-        const myIndex = this.tanks.findIndex(t => t.isHuman);
+        const myIndex = this.gameType === 'online' 
+            ? this.tanks.findIndex(t => t.socketId === this.socket.id)
+            : this.tanks.findIndex(t => t.isHuman);
 
         for (const st of serverTanks) {
             const tk = this.tanks[st.id];
@@ -193,13 +195,16 @@ class GameEngine {
             }
 
             const tank = new Tank(sp.x, sp.y, angle, i, p.team, p.isHuman, botClass);
+            if (this.gameType === 'online') {
+                tank.socketId = p.id;
+            }
             this.tanks.push(tank);
             if (!p.isHuman) {
                 this.aiControllers.push(new AIController(this.aiDifficulty, botClass));
             } else {
                 this.aiControllers.push(null);
-                // Link shell inventory to human tanks
-                if (this.shellInventory) {
+                // Link shell inventory to human tanks (if local player)
+                if (this.shellInventory && (this.gameType !== 'online' || tank.socketId === this.socket.id)) {
                     tank.shellInventory = this.shellInventory;
                 }
             }
@@ -263,7 +268,7 @@ class GameEngine {
             if (ks[`Digit${s + 1}`]) { shellSlot = s; ks[`Digit${s + 1}`] = false; break; }
         }
 
-        if (this.gameType === 'vsbot') {
+        if (this.gameType === 'vsbot' || this.gameType === 'online') {
             return {
                 up: ks['ArrowUp'] || ks['KeyW'] || false,
                 down: ks['ArrowDown'] || ks['KeyS'] || false,
@@ -381,7 +386,7 @@ class GameEngine {
         if (!this.gameActive) return;
         this.gameTime += dt;
         
-        const myIndex = this.tanks.findIndex(t => t.isHuman);
+        const myIndex = this.tanks.findIndex(t => t.socketId === this.socket.id);
         if (myIndex !== -1 && this.socket) {
             const input = this._getHumanInput(myIndex);
             
@@ -770,8 +775,11 @@ class GameEngine {
 
     _drawShellHUD(ctx, w, h) {
         if (!this.shellInventory || !this.gameActive) return;
-        const humanTank = this.tanks.find(t => t.isHuman && t.alive);
-        if (!humanTank) return;
+        const myIndex = this.gameType === 'online' 
+            ? this.tanks.findIndex(t => t.socketId === this.socket.id)
+            : this.tanks.findIndex(t => t.isHuman);
+        const humanTank = myIndex !== -1 ? this.tanks[myIndex] : null;
+        if (!humanTank || !humanTank.alive) return;
 
         const info = this.shellInventory.getLoadoutInfo();
         const slotW = 42, slotH = 42, gap = 6;
