@@ -4,7 +4,7 @@
 
 (function () {
     // ---- Asset Preloading ----
-    window.IMAGE_ASSETS = { tanks: {}, cannons: {} };
+    window.IMAGE_ASSETS = { tanks: {}, cannons: {}, effects: {} };
     function preloadAssets() {
         // Load models 1~5 for Alpha (Color 3) and Bravo (Color 4)
         [1, 2, 3, 4, 5].forEach(t => {
@@ -17,6 +17,25 @@
                 window.IMAGE_ASSETS.cannons[`cannon${t}_color${c}`] = can;
             });
         });
+        
+        // Load specific effects
+        const effectsToLoad = {
+            'standard': 'Medium_Shell.png',
+            'explosive': 'Granade_Shell.png',
+            'piercing': 'Sniper_Shell.png',
+            'ricochet': 'Light_Shell.png',
+            'venom': 'Plasma.png',
+            'explosion_standard': 'Explosion_A.png',
+            'explosion_huge': 'Explosion_E.png',
+            'explosion_venom': 'Flame_G.png',
+            'explosion_muzzle': 'Flash_A_05.png'
+        };
+
+        for (const [key, filename] of Object.entries(effectsToLoad)) {
+            const img = new Image();
+            img.src = `assets/Effects/${filename}`;
+            window.IMAGE_ASSETS.effects[key] = img;
+        }
     }
     preloadAssets();
 

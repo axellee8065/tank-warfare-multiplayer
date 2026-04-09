@@ -109,7 +109,7 @@ class GameEngine {
             if (!this.running || this.roundOver) return;
             this._syncTanks(data.tanks);
             this.bullets = (data.bullets || []).map(b => {
-                const bullet = new Bullet(b.x, b.y, b.angle, null, b.team, b.shellType);
+                const bullet = new Bullet(b.x, b.y, b.angle || Math.atan2(b.vy, b.vx), null, b.team, SHELL_TYPES[b.shellId] || SHELL_TYPES.standard);
                 bullet.vx = b.vx;
                 bullet.vy = b.vy;
                 return bullet;
@@ -128,12 +128,16 @@ class GameEngine {
             if (data.type === 'shoot') {
                 this.audio.shoot();
                 this.particles.emit(data.x, data.y, 5, { color: ['#ffaa00', '#fff'], speed: 80, life: 0.2, size: 2, angle: data.angle, spread: 0.5 });
+                this.particles.imageEffects.push(new ImageEffect(data.x, data.y, 'muzzle', 30, 0.15));
             } else if (data.type === 'hit') {
                 this.audio.hit();
+                if (data.x !== undefined && data.y !== undefined) {
+                    this.particles.explosion(data.x, data.y, false, data.shellId || 'standard');
+                }
             } else if (data.type === 'explode') {
                 this.audio.explode();
                 this.shakeIntensity = 12;
-                this.particles.explosion(data.x, data.y, true);
+                this.particles.explosion(data.x, data.y, true, 'huge');
             } else if (data.type === 'powerup') {
                 this.audio.powerup();
             }
@@ -216,9 +220,14 @@ class GameEngine {
                 this.aiControllers.push(new AIController(this.aiDifficulty, botClass));
             } else {
                 this.aiControllers.push(null);
-                // Link shell inventory to human tanks (if local player)
+                // Link shell inventory to human tanks
                 if (this.shellInventory && (this.gameType !== 'online' || tank.socketId === this.socket.id)) {
                     tank.shellInventory = this.shellInventory;
+                } else if (p.loadout) {
+                    tank.shellInventory = {
+                        getSlotType: (slot) => SHELL_TYPES[p.loadout[slot]] || null,
+                        consume: () => true
+                    };
                 }
             }
         }
@@ -517,6 +526,7 @@ class GameEngine {
                             speed: 80, life: 0.2, size: 2,
                             angle: tank.angle, spread: 0.5
                         });
+                        this.particles.imageEffects.push(new ImageEffect(bullet.x, bullet.y, 'muzzle', 30, 0.15));
                     }
                 }
             }
@@ -545,12 +555,12 @@ class GameEngine {
                     this.particles.emit(b.x, b.y, 4, { color: [b.shellColor, '#fff'], speed: 40, life: 0.2, size: 2 });
                 } else if (b.piercing && this.map.breakWallAt(b.x, b.y)) {
                     // Piercing: go through breakable walls
-                    this.particles.explosion(b.x, b.y);
+                    this.particles.explosion(b.x, b.y, false, b.shellId);
                     this.audio.hit();
                 } else {
                     // Standard wall hit
                     if (this.map.breakWallAt(b.x, b.y)) {
-                        this.particles.explosion(b.x, b.y);
+                        this.particles.explosion(b.x, b.y, false, b.shellId);
                         this.audio.hit();
                     }
                     this.particles.emit(b.x, b.y, 8, { color: ['#aaa', '#666'], speed: 60, life: 0.3, size: 2 });
@@ -586,7 +596,7 @@ class GameEngine {
                         this._onKill(shooter);
                         this.audio.explode();
                         this.shakeIntensity = 12;
-                        this.particles.explosion(tank.x, tank.y, true);
+                        this.particles.explosion(tank.x, tank.y, true, 'huge');
                     }
                     b.alive = false;
                     break;
@@ -669,7 +679,7 @@ class GameEngine {
             }
         }
         // Visual: big explosion ring
-        this.particles.explosion(bullet.x, bullet.y, true);
+        this.particles.explosion(bullet.x, bullet.y, true, 'explosive');
         this.shakeIntensity = Math.max(this.shakeIntensity, 8);
     }
 

@@ -54,17 +54,35 @@ class Bullet {
             ctx.fill();
         }
         ctx.globalAlpha = 1;
-        // Bullet glow
-        ctx.shadowColor = this.shellGlow;
-        ctx.shadowBlur = 14;
-        ctx.fillStyle = '#fff';
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = color;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius * 0.6, 0, Math.PI * 2);
-        ctx.fill();
+        
+        let spriteUrl = null;
+        if (typeof window !== 'undefined' && window.IMAGE_ASSETS && window.IMAGE_ASSETS.effects) {
+            spriteUrl = window.IMAGE_ASSETS.effects[this.shellId];
+        }
+
+        if (spriteUrl && spriteUrl.complete) {
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            ctx.rotate(this.angle + Math.PI / 2);
+            ctx.shadowColor = this.shellGlow;
+            ctx.shadowBlur = 10;
+            // Draw sprite
+            const s = this.radius * 4; // Make the sprite larger than the hitbox
+            ctx.drawImage(spriteUrl, -s/2, -s/2, s, s);
+            ctx.restore();
+        } else {
+            // Bullet glow fallback
+            ctx.shadowColor = this.shellGlow;
+            ctx.shadowBlur = 14;
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius * 0.6, 0, Math.PI * 2);
+            ctx.fill();
+        }
         // Piercing indicator (small diamond)
         if (this.piercing) {
             ctx.fillStyle = '#fff';

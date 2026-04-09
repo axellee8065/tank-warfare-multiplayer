@@ -97,8 +97,38 @@ class Particle {
     isDead() { return this.life <= 0; }
 }
 
+class ImageEffect {
+    constructor(x, y, type, size, duration) {
+        this.x = x; this.y = y;
+        this.type = type;
+        this.size = size;
+        this.maxLife = duration;
+        this.life = duration;
+        this.rotation = Math.random() * Math.PI * 2;
+    }
+    update(dt) { this.life -= dt; }
+    draw(ctx) {
+        if (!window.IMAGE_ASSETS || !window.IMAGE_ASSETS.effects) return;
+        const imgKey = 'explosion_' + this.type;
+        const img = window.IMAGE_ASSETS.effects[imgKey];
+        if (!img || !img.complete) return;
+
+        const progress = 1 - (this.life / this.maxLife);
+        const currentSize = this.size * (0.5 + 1.5 * progress);
+        const alpha = Math.max(0, 1 - progress);
+
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.rotation);
+        ctx.globalAlpha = alpha;
+        ctx.drawImage(img, -currentSize/2, -currentSize/2, currentSize, currentSize);
+        ctx.restore();
+    }
+    isDead() { return this.life <= 0; }
+}
+
 class ParticleSystem {
-    constructor() { this.particles = []; }
+    constructor() { this.particles = []; this.imageEffects = []; }
     emit(x, y, count, opts = {}) {
         const { color = '#ffaa00', speed = 150, life = 0.5, size = 3, spread = Math.PI * 2, angle = 0 } = opts;
         for (let i = 0; i < count; i++) {
@@ -108,10 +138,14 @@ class ParticleSystem {
             this.particles.push(new Particle(x, y, Math.cos(a) * spd, Math.sin(a) * spd, life * (0.5 + Math.random() * 0.5), colors, size * (0.5 + Math.random() * 0.5)));
         }
     }
-    explosion(x, y, big = false) {
+    explosion(x, y, big = false, type = 'standard') {
         const n = big ? 40 : 20;
         this.emit(x, y, n, { color: ['#ff6600', '#ffaa00', '#ffdd00', '#ff3300', '#ffffff'], speed: big ? 250 : 150, life: big ? 0.8 : 0.5, size: big ? 5 : 3 });
         this.emit(x, y, Math.floor(n / 2), { color: ['#666666', '#888888', '#444444'], speed: big ? 100 : 60, life: big ? 1.2 : 0.7, size: big ? 4 : 2 });
+        // Add image effect
+        let effectType = type;
+        if (big) effectType = 'huge';
+        this.imageEffects.push(new ImageEffect(x, y, effectType, big ? 100 : 50, 0.4));
     }
     trail(x, y, color) {
         this.emit(x, y, 1, { color: [color, '#666'], speed: 20, life: 0.3, size: 2, spread: Math.PI * 2 });
@@ -121,9 +155,16 @@ class ParticleSystem {
             this.particles[i].update(dt);
             if (this.particles[i].isDead()) this.particles.splice(i, 1);
         }
+        for (let i = this.imageEffects.length - 1; i >= 0; i--) {
+            this.imageEffects[i].update(dt);
+            if (this.imageEffects[i].isDead()) this.imageEffects.splice(i, 1);
+        }
     }
-    draw(ctx) { this.particles.forEach(p => p.draw(ctx)); }
-    clear() { this.particles = []; }
+    draw(ctx) { 
+        this.particles.forEach(p => p.draw(ctx)); 
+        this.imageEffects.forEach(e => e.draw(ctx));
+    }
+    clear() { this.particles = []; this.imageEffects = []; }
 }
 
 // ---- CONFIG ----

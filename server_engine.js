@@ -177,7 +177,7 @@ class ServerEngine {
                     const bullet = tank.shoot();
                     if (bullet) {
                         this.bullets.push(bullet);
-                        this.io.to(this.roomId).emit('sound', { type: 'shoot', x: tank.x, y: tank.y, angle: tank.angle, shellColor: bullet.shellColor });
+                        this.io.to(this.roomId).emit('sound', { type: 'shoot', x: tank.x, y: tank.y, angle: tank.angle, shellColor: bullet.shellColor, shellId: bullet.shellId });
                     }
                 }
             } else {
@@ -198,7 +198,7 @@ class ServerEngine {
                         const bullet = tank.shoot();
                         if (bullet) {
                             this.bullets.push(bullet);
-                            this.io.to(this.roomId).emit('sound', { type: 'shoot', x: tank.x, y: tank.y, angle: tank.angle, shellColor: bullet.shellColor });
+                            this.io.to(this.roomId).emit('sound', { type: 'shoot', x: tank.x, y: tank.y, angle: tank.angle, shellColor: bullet.shellColor, shellId: bullet.shellId });
                         }
                     }
                 }
@@ -223,11 +223,10 @@ class ServerEngine {
                         b.x = prevX; b.y = prevY;
                     }
                 } else if (b.piercing && this.map.breakWallAt(b.x, b.y)) {
-                    this.io.to(this.roomId).emit('sound', { type: 'hit' });
+                    this.io.to(this.roomId).emit('sound', { type: 'hit', x: b.x, y: b.y, shellId: b.shellId });
                 } else {
-                    if (this.map.breakWallAt(b.x, b.y)) {
-                        this.io.to(this.roomId).emit('sound', { type: 'hit' });
-                    }
+                    this.map.breakWallAt(b.x, b.y);
+                    this.io.to(this.roomId).emit('sound', { type: 'hit', x: b.x, y: b.y, shellId: b.shellId });
                     if (b.explosive) this._splashDamage(b);
                     b.alive = false;
                 }
@@ -243,7 +242,7 @@ class ServerEngine {
                     if (shooter) { shooter.stats.hits++; shooter.stats.damage += b.damage; }
                     if (b.dot) tank.applyDot(b.dot);
                     
-                    this.io.to(this.roomId).emit('sound', { type: 'hit' });
+                    this.io.to(this.roomId).emit('sound', { type: 'hit', x: b.x, y: b.y, shellId: b.shellId });
                     if (b.explosive) this._splashDamage(b);
 
                     if (killed) {
@@ -380,7 +379,8 @@ class ServerEngine {
             tanks: this._getTanksState(),
             bullets: this.bullets.map(b => ({
                 id: b.id || Math.random(), 
-                x: b.x, y: b.y, vx: b.vx, vy: b.vy, radius: b.radius, color: b.shellColor
+                x: b.x, y: b.y, vx: b.vx, vy: b.vy, radius: b.radius, color: b.shellColor,
+                shellId: b.shellId, team: b.team
             })),
             powerups: this.powerups.map(p => ({
                 x: p.x, y: p.y, type: p.type
