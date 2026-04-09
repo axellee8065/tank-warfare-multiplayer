@@ -50,8 +50,11 @@ class GameEngine {
         this.aiDifficulty = difficulty || 'medium';
         this.gameType = gameType || 'pvp';
         this.touchControls = touchCtrl || null;
-        this.canvas.width = this.canvas.parentElement.clientWidth;
-        this.canvas.height = this.canvas.parentElement.clientHeight;
+        
+        // Fixed logical resolution for Cross-Platform Sync
+        this.canvas.width = 1920;
+        this.canvas.height = 1080;
+        
         this.map = new GameMap(mapIndex, this.canvas.width, this.canvas.height);
         this._createTanks(playerSetup);
         this._setupInput();
