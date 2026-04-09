@@ -10,8 +10,8 @@ const AI_DIFFICULTY = {
 
 const BOT_CLASSES = {
     standard: { label: 'Standard', hpMult: 1.0, spdMult: 1.0, scale: 1.0 },
-    heavy:    { label: 'Heavy', hpMult: 2.0, spdMult: 0.6, scale: 1.25 },
-    scout:    { label: 'Scout', hpMult: 0.5, spdMult: 1.4, scale: 0.8 }
+    heavy:    { label: 'Heavy', hpMult: 2.0, spdMult: 0.6, scale: 1.0 },
+    scout:    { label: 'Scout', hpMult: 0.5, spdMult: 1.4, scale: 1.0 }
 };
 
 class AIController {
