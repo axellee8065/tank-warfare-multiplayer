@@ -150,11 +150,7 @@ class GameEngine {
             const tk = this.tanks[st.id];
             if (tk) {
                 if (st.id === myIndex && this.gameType === 'online') {
-                    // Local tank: Server authority only for stats, soft snap for large divergence
-                    const dist = Math.hypot(tk.x - st.x, tk.y - st.y);
-                    if (dist > 40) {
-                        tk.x = st.x; tk.y = st.y; 
-                    }
+                    // We are Client-Authoritative. Completely ignore Server position adjustments for human players to prevent stutter!
                 } else {
                     if (tk.targetX === undefined) {
                         tk.x = st.x; tk.targetX = st.x;
@@ -399,10 +395,7 @@ class GameEngine {
                 input.angle = Math.atan2(this.mouseY - cy, this.mouseX - cx);
             }
             
-            // Only send if changed, or throttle? For now send at high rate
-            this.socket.emit('player_input', { roomId: this.roomId, input });
-            
-            // Client-Side Prediction: Move instantly to remove "late" feeling
+            // Client-Side Prediction: Move instantly
             const localTank = this.tanks[myIndex];
             if (localTank && localTank.alive) {
                 const movement = localTank.update(dt, input);
@@ -419,7 +412,12 @@ class GameEngine {
                         this.particles.trail(localTank.x, localTank.y, localTank.teamColor);
                     }
                 }
+                // Attach authoritative position for server
+                input.clientPos = { x: localTank.x, y: localTank.y, angle: localTank.angle };
             }
+            
+            // Only send if changed, or throttle? For now send at high rate
+            this.socket.emit('player_input', { roomId: this.roomId, input });
         }
         
         // INTERPOLATION for other Tanks

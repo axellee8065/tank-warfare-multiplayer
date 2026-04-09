@@ -150,30 +150,46 @@ class ServerEngine {
             let input;
             if (tank.isHuman) {
                 input = this.inputs[i] || { up: false, down: false, left: false, right: false, shoot: false };
-                if (input.angle !== undefined) {
-                    // Mobile/mouse aiming override
+                
+                // Process timers (buffs, cooldowns) but discard local dx/dy
+                const movement = tank.update(dt, input);
+                
+                // Client-Authoritative position mapping
+                if (input.clientPos && !this.roundOver) {
+                    tank.x = input.clientPos.x;
+                    tank.y = input.clientPos.y;
+                    tank.angle = input.clientPos.angle;
+                } else if (input.angle !== undefined) {
                     tank.angle = input.angle;
                 }
-            } else {
-                const enemies = this.tanks.filter(t => t.team !== tank.team && t.alive);
-                input = this.aiControllers[i].update(dt, tank, enemies, this.bullets, this.map);
-            }
 
-            const movement = tank.update(dt, input);
-            if (movement) {
-                tank.applyMove(movement.dx, 0);
-                this.map.resolveCollision(tank);
-                this._resolveTankCollisions(tank);
-
-                tank.applyMove(0, movement.dy);
-                this.map.resolveCollision(tank);
-                this._resolveTankCollisions(tank);
-
-                if (movement.wantShoot) {
+                if (movement && movement.wantShoot) {
                     const bullet = tank.shoot();
                     if (bullet) {
                         this.bullets.push(bullet);
                         this.io.to(this.roomId).emit('sound', { type: 'shoot', x: tank.x, y: tank.y, angle: tank.angle, shellColor: bullet.shellColor });
+                    }
+                }
+            } else {
+                const enemies = this.tanks.filter(t => t.team !== tank.team && t.alive);
+                input = this.aiControllers[i].update(dt, tank, enemies, this.bullets, this.map);
+                
+                const movement = tank.update(dt, input);
+                if (movement) {
+                    tank.applyMove(movement.dx, 0);
+                    this.map.resolveCollision(tank);
+                    this._resolveTankCollisions(tank);
+
+                    tank.applyMove(0, movement.dy);
+                    this.map.resolveCollision(tank);
+                    this._resolveTankCollisions(tank);
+
+                    if (movement.wantShoot) {
+                        const bullet = tank.shoot();
+                        if (bullet) {
+                            this.bullets.push(bullet);
+                            this.io.to(this.roomId).emit('sound', { type: 'shoot', x: tank.x, y: tank.y, angle: tank.angle, shellColor: bullet.shellColor });
+                        }
                     }
                 }
             }
