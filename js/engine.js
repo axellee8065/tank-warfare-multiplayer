@@ -52,8 +52,8 @@ class GameEngine {
         this.touchControls = touchCtrl || null;
         
         // Fixed logical resolution for Cross-Platform Sync
-        this.canvas.width = 1920;
-        this.canvas.height = 1080;
+        this.canvas.width = 1080;
+        this.canvas.height = 1920;
         
         this.map = new GameMap(mapIndex, this.canvas.width, this.canvas.height);
         this._createTanks(playerSetup);

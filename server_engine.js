@@ -48,8 +48,8 @@ class ServerEngine {
         this.tickInterval = null;
         this.tickRate = 1000 / 30; // 30 Hz
         
-        this.canvasWidth = 1920; // Default logical map width
-        this.canvasHeight = 1080; // Default logical map height
+        this.canvasWidth = 1080; // Default logical map width
+        this.canvasHeight = 1920; // Default logical map height
     }
 
     init(playerSetup, mapIndex) {
