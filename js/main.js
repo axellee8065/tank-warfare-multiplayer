@@ -3,6 +3,23 @@
 // ============================================
 
 (function () {
+    // ---- Asset Preloading ----
+    window.IMAGE_ASSETS = { tanks: {}, cannons: {} };
+    function preloadAssets() {
+        // Load models 1~5 for Alpha (Color 3) and Bravo (Color 4)
+        [1, 2, 3, 4, 5].forEach(t => {
+            [3, 4].forEach(c => {
+                const b = new Image();
+                b.src = `assets/Tanks_base/tank${t}_color${c}.png`;
+                window.IMAGE_ASSETS.tanks[`tank${t}_color${c}`] = b;
+                const can = new Image();
+                can.src = `assets/Cannons_color${c}/cannon${t}_1.png`;
+                window.IMAGE_ASSETS.cannons[`cannon${t}_color${c}`] = can;
+            });
+        });
+    }
+    preloadAssets();
+
     // ---- State ----
     let currentScreen = 'title-screen';
     let selectedMode = '1v1';

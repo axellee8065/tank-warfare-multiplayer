@@ -134,6 +134,9 @@ class Tank {
             scale = BOT_CLASSES[botClass].scale;
         }
 
+        const classMap = { 'scout': 1, 'fighter': 2, 'standard': 3, 'heavy': 4, 'artillery': 5 };
+        this.modelId = classMap[botClass] || 3;
+
         this.hp = CONFIG.TANK_HP * hpMult;
         this.maxHp = CONFIG.TANK_HP * hpMult;
         this.alive = true;
@@ -270,62 +273,90 @@ class Tank {
         ctx.rotate(this.angle + Math.PI / 2);
 
         const w = this.w, h = this.h;
-        const hw = w / 2, hh = h / 2;
-
-        // Shadow
-        ctx.fillStyle = 'rgba(0,0,0,0.3)';
-        ctx.fillRect(-hw + 2, -hh + 2, w, h);
-
-        // Treads
-        ctx.fillStyle = '#333';
-        ctx.fillRect(-hw - 3, -hh, 5, h);
-        ctx.fillRect(hw - 2, -hh, 5, h);
-        // Tread detail
-        ctx.strokeStyle = '#555';
-        ctx.lineWidth = 1;
-        for (let i = 0; i < h; i += 5) {
-            ctx.beginPath();
-            ctx.moveTo(-hw - 3, -hh + i); ctx.lineTo(-hw + 2, -hh + i);
-            ctx.moveTo(hw - 2, -hh + i); ctx.lineTo(hw + 3, -hh + i);
-            ctx.stroke();
+        const flash = this.flashTime > 0;
+        
+        let baseImg = null;
+        let cannonImg = null;
+        if (typeof window !== 'undefined' && window.IMAGE_ASSETS) {
+            const mId = this.modelId || 3;
+            const cId = this.team === 0 ? 3 : 4; // 3=Alpha(Blue/Grey), 4=Bravo(Red/Brown)
+            baseImg = window.IMAGE_ASSETS.tanks[`tank${mId}_color${cId}`];
+            cannonImg = window.IMAGE_ASSETS.cannons[`cannon${mId}_color${cId}`];
         }
 
-        // Body
-        const flash = this.flashTime > 0;
-        const bodyColor = flash ? '#ffffff' : this.teamColor;
-        ctx.fillStyle = bodyColor;
-        ctx.shadowColor = this.teamColor;
-        ctx.shadowBlur = flash ? 20 : 8;
-        this._roundRect(ctx, -hw, -hh, w, h, 4);
-        ctx.fill();
-        ctx.shadowBlur = 0;
+        if (baseImg && cannonImg && baseImg.complete && cannonImg.complete) {
+            // Draw via Sprites
+            const imgSize = Math.max(w, h) * 1.5; // Scale roughly matching collision rect
+            const hw = imgSize / 2;
+            
+            ctx.shadowBlur = flash ? 20 : 8;
+            ctx.shadowColor = this.teamColor;
+            if (flash) ctx.filter = 'brightness(250%)';
+            
+            ctx.drawImage(baseImg, -hw, -hw, imgSize, imgSize);
+            ctx.drawImage(cannonImg, -hw, -hw, imgSize, imgSize);
+            
+            if (flash) ctx.filter = 'none';
+            ctx.shadowBlur = 0;
+        } else {
+            // Fallback rendering
+            const hw = w / 2, hh = h / 2;
 
-        // Body detail lines
-        ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(-hw + 3, -hh + 3, w - 6, h - 6);
+            // Shadow
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.fillRect(-hw + 2, -hh + 2, w, h);
 
-        // Turret base
-        ctx.fillStyle = flash ? '#fff' : this._darken(this.teamColor, 0.3);
-        ctx.beginPath();
-        ctx.arc(0, 0, 8, 0, Math.PI * 2);
-        ctx.fill();
+            // Treads
+            ctx.fillStyle = '#333';
+            ctx.fillRect(-hw - 3, -hh, 5, h);
+            ctx.fillRect(hw - 2, -hh, 5, h);
+            // Tread detail
+            ctx.strokeStyle = '#555';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < h; i += 5) {
+                ctx.beginPath();
+                ctx.moveTo(-hw - 3, -hh + i); ctx.lineTo(-hw + 2, -hh + i);
+                ctx.moveTo(hw - 2, -hh + i); ctx.lineTo(hw + 3, -hh + i);
+                ctx.stroke();
+            }
 
-        // Barrel
-        ctx.fillStyle = flash ? '#fff' : '#ddd';
-        ctx.fillRect(-2.5, -hh - 8, 5, hh + 2);
-        // Barrel tip
-        ctx.fillStyle = this.teamColor;
-        ctx.fillRect(-3.5, -hh - 10, 7, 4);
+            // Body
+            const bodyColor = flash ? '#ffffff' : this.teamColor;
+            ctx.fillStyle = bodyColor;
+            ctx.shadowColor = this.teamColor;
+            ctx.shadowBlur = flash ? 20 : 8;
+            this._roundRect(ctx, -hw, -hh, w, h, 4);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            // Body detail lines
+            ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(-hw + 3, -hh + 3, w - 6, h - 6);
+
+            // Turret base
+            ctx.fillStyle = flash ? '#fff' : this._darken(this.teamColor, 0.3);
+            ctx.beginPath();
+            ctx.arc(0, 0, 8, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Barrel
+            ctx.fillStyle = flash ? '#fff' : '#ddd';
+            ctx.fillRect(-2.5, -hh - 8, 5, hh + 2);
+            // Barrel tip
+            ctx.fillStyle = this.teamColor;
+            ctx.fillRect(-3.5, -hh - 10, 7, 4);
+        }
 
         // Shield indicator
         if (this.buffs.shield > 0) {
+            const mx = Math.max(w/2, h/2);
             ctx.strokeStyle = '#d500f9';
             ctx.lineWidth = 2;
             ctx.shadowColor = '#d500f9';
             ctx.shadowBlur = 10;
             ctx.beginPath();
-            ctx.arc(0, 0, Math.max(hw, hh) + 5, 0, Math.PI * 2);
+            ctx.arc(0, 0, mx + 5, 0, Math.PI * 2);
             ctx.stroke();
             ctx.shadowBlur = 0;
         }
