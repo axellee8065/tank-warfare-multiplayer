@@ -214,11 +214,35 @@ class Tank {
         }
 
         const spd = this.speed * (this.buffs.speed > 0 ? 1.5 : 1);
-        if (input.left) this.angle -= this.rotSpeed * dt;
-        if (input.right) this.angle += this.rotSpeed * dt;
         let dx = 0, dy = 0;
-        if (input.up) { dx = Math.cos(this.angle) * spd * dt; dy = Math.sin(this.angle) * spd * dt; }
-        if (input.down) { dx = -Math.cos(this.angle) * spd * 0.6 * dt; dy = -Math.sin(this.angle) * spd * 0.6 * dt; }
+
+        if (input.magnitude !== undefined && input.magnitude > 0) {
+            // Absolute Joystick Movement (Mobile Natural Feel)
+            
+            // Smoothly rotate tank towards joystick angle
+            let diff = input.angle - this.angle;
+            while(diff < -Math.PI) diff += Math.PI * 2;
+            while(diff > Math.PI) diff -= Math.PI * 2;
+            this.angle += Math.sign(diff) * Math.min(Math.abs(diff), this.rotSpeed * dt * 2.5); // Turn slightly faster for responsiveness
+            
+            // Move in the direction of the joystick
+            dx = Math.cos(input.angle) * spd * input.magnitude * dt;
+            dy = Math.sin(input.angle) * spd * input.magnitude * dt;
+        } else {
+            // Desktop / Classic Keyboard Tank Controls
+            if (input.left) this.angle -= this.rotSpeed * dt;
+            if (input.right) this.angle += this.rotSpeed * dt;
+            if (input.up) { dx = Math.cos(this.angle) * spd * dt; dy = Math.sin(this.angle) * spd * dt; }
+            if (input.down) { dx = -Math.cos(this.angle) * spd * 0.6 * dt; dy = -Math.sin(this.angle) * spd * 0.6 * dt; }
+            
+            // Mouse Aim Override
+            if (input.angle !== undefined && input.magnitude === undefined) {
+                let diff = input.angle - this.angle;
+                while(diff < -Math.PI) diff += Math.PI * 2;
+                while(diff > Math.PI) diff -= Math.PI * 2;
+                this.angle += Math.sign(diff) * Math.min(Math.abs(diff), this.rotSpeed * dt * 3.5); 
+            }
+        }
 
         // Shell switching (from input)
         if (input.shellSlot !== undefined && input.shellSlot !== this.activeShellSlot) {

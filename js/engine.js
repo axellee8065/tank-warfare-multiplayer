@@ -266,62 +266,53 @@ class GameEngine {
     _getHumanInput(playerIndex) {
         if (!this.gameActive) return { up: false, down: false, left: false, right: false, shoot: false };
 
-        // Touch controls override everything
-        if (this.touchControls && this.touchControls.active) {
-            const ts = this.touchControls.getState();
-            const ks = this.inputState;
-            return {
-                up: ts.up || ks['ArrowUp'] || ks['KeyW'] || false,
-                down: ts.down || ks['ArrowDown'] || ks['KeyS'] || false,
-                left: ts.left || ks['ArrowLeft'] || ks['KeyA'] || false,
-                right: ts.right || ks['ArrowRight'] || ks['KeyD'] || false,
-                shoot: ts.shoot || ks['Space'] || false
-            };
-        }
-
         const ks = this.inputState;
-        const humanPlayers = this.tanks.filter(t => t.isHuman);
-        const humanIdx = humanPlayers.indexOf(this.tanks[playerIndex]);
-
-        // VS BOT: primary player uses Arrow Keys + Space
-        // Shell slot switching (1-5 keys)
+        
         let shellSlot = undefined;
         for (let s = 0; s < 5; s++) {
             if (ks[`Digit${s + 1}`]) { shellSlot = s; ks[`Digit${s + 1}`] = false; break; }
         }
 
-        if (this.gameType === 'vsbot' || this.gameType === 'online') {
-            return {
-                up: ks['ArrowUp'] || ks['KeyW'] || false,
-                down: ks['ArrowDown'] || ks['KeyS'] || false,
-                left: ks['ArrowLeft'] || ks['KeyA'] || false,
-                right: ks['ArrowRight'] || ks['KeyD'] || false,
-                shoot: ks['Space'] || false,
-                shellSlot
-            };
+        const humanPlayers = this.tanks.filter(t => t.isHuman);
+        const humanIdx = humanPlayers.indexOf(this.tanks[playerIndex]);
+
+        let input = {
+            up: false, down: false, left: false, right: false, shoot: false, shellSlot
+        };
+
+        if (this.gameType === 'vsbot' || this.gameType === 'online' || humanIdx === 0) {
+            input.up = ks['ArrowUp'] || ks['KeyW'] || false;
+            input.down = ks['ArrowDown'] || ks['KeyS'] || false;
+            input.left = ks['ArrowLeft'] || ks['KeyA'] || false;
+            input.right = ks['ArrowRight'] || ks['KeyD'] || false;
+            input.shoot = ks['Space'] || false;
+        } else if (humanIdx === 1) {
+            input.up = ks['ArrowUp'] || false;
+            input.down = ks['ArrowDown'] || false;
+            input.left = ks['ArrowLeft'] || false;
+            input.right = ks['ArrowRight'] || false;
+            input.shoot = ks['Slash'] || ks['Period'] || ks['ShiftRight'] || false;
         }
 
-        // PVP: P1 = WASD+Space or Arrows+Space, P2 = Arrows+Slash
-        if (humanIdx === 0) {
-            return {
-                up: ks['ArrowUp'] || ks['KeyW'] || false,
-                down: ks['ArrowDown'] || ks['KeyS'] || false,
-                left: ks['ArrowLeft'] || ks['KeyA'] || false,
-                right: ks['ArrowRight'] || ks['KeyD'] || false,
-                shoot: ks['Space'] || false,
-                shellSlot
-            };
-        } else if (humanIdx === 1) {
-            return {
-                up: ks['ArrowUp'] || false,
-                down: ks['ArrowDown'] || false,
-                left: ks['ArrowLeft'] || false,
-                right: ks['ArrowRight'] || false,
-                shoot: ks['Slash'] || ks['Period'] || ks['ShiftRight'] || false,
-                shellSlot
-            };
+        // Touch controls override
+        if (this.touchControls && this.touchControls.active) {
+            const ts = this.touchControls.getState();
+            input.up = input.up || ts.up;
+            input.down = input.down || ts.down;
+            input.left = input.left || ts.left;
+            input.right = input.right || ts.right;
+            input.shoot = input.shoot || ts.shoot;
+
+            if (typeof this.touchControls.getJoystick === 'function') {
+                const joy = this.touchControls.getJoystick();
+                if (joy.active) {
+                    input.angle = joy.angle;
+                    input.magnitude = joy.magnitude;
+                }
+            }
         }
-        return { up: false, down: false, left: false, right: false, shoot: false };
+
+        return input;
     }
 
     startRound() {

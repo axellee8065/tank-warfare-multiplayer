@@ -84,16 +84,28 @@ class TouchControls {
 
         this.joyKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
 
-        const deadZone = 15;
-        const angle = Math.atan2(dy, dx);
+        const deadZone = 10;
+        this.joyAngle = Math.atan2(dy, dx);
+        this.joyMagnitude = dist > deadZone ? Math.min(dist / maxDist, 1.0) : 0;
+
         if (dist > deadZone) {
-            this.state.up = dy < -deadZone;
-            this.state.down = dy > deadZone;
-            this.state.left = dx < -deadZone;
-            this.state.right = dx > deadZone;
+            // Soft overlap threshold for 8-way diagonal mapping
+            const threshold = deadZone;
+            this.state.up = dy < -threshold;
+            this.state.down = dy > threshold;
+            this.state.left = dx < -threshold;
+            this.state.right = dx > threshold;
         } else {
             this.state.up = this.state.down = this.state.left = this.state.right = false;
         }
+    }
+
+    getJoystick() {
+        return {
+            active: this.joyActive,
+            angle: this.joyAngle || 0,
+            magnitude: this.joyMagnitude || 0
+        };
     }
 
     static isTouchDevice() {
