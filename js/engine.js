@@ -387,7 +387,7 @@ class GameEngine {
         if (this.gameType === 'online') {
             this._updateOnline(dt);
         } else {
-            if (!this.paused && !this.roundOver) {
+            if (!this.paused) {
                 this._update(dt);
             }
         }
@@ -397,7 +397,10 @@ class GameEngine {
     }
 
     _updateOnline(dt) {
-        if (!this.gameActive) return;
+        if (!this.gameActive) {
+            this._updateVisuals(dt);
+            return;
+        }
         this.gameTime += dt;
         
         const myIndex = this.tanks.findIndex(t => t.socketId === this.socket.id);
@@ -481,7 +484,10 @@ class GameEngine {
     }
 
     _update(dt) {
-        if (!this.gameActive) return;
+        if (!this.gameActive) {
+            this._updateVisuals(dt);
+            return;
+        }
         this.gameTime += dt;
 
         let anyHumanMoving = false;
@@ -633,6 +639,11 @@ class GameEngine {
             }
         }
 
+        this._checkRoundEnd();
+        this._updateVisuals(dt);
+    }
+
+    _updateVisuals(dt) {
         this.particles.update(dt);
 
         // Screen shake
@@ -643,7 +654,6 @@ class GameEngine {
             if (this.shakeIntensity < 0.3) this.shakeIntensity = 0;
         } else { this.shakeX = this.shakeY = 0; }
 
-        this._checkRoundEnd();
         this._updateHUD();
     }
 
