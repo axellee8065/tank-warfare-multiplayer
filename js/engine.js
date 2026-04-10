@@ -338,11 +338,18 @@ class GameEngine {
         }
 
         this.audio.roundStart();
-        this._showBanner(`ROUND ${this.round}`, '준비!');
-        setTimeout(() => {
-            this._hideBanner();
-            this.gameActive = true;
-        }, 1800);
+        
+        if (this.readyTimeout) clearTimeout(this.readyTimeout);
+        if (this.gameType === 'online') {
+            this._showBanner('준비!', '');
+        } else {
+            this._showBanner(`ROUND ${this.round}`, '준비!');
+            this.readyTimeout = setTimeout(() => {
+                this._hideBanner();
+                this.gameActive = true;
+                this.readyTimeout = null;
+            }, 1800);
+        }
     }
 
     _showBanner(text, sub) {
@@ -708,6 +715,7 @@ class GameEngine {
         const bravoAlive = this.tanks.filter(t => t.team === 1 && t.alive).length;
 
         if (alphaAlive === 0 || bravoAlive === 0) {
+            if (this.roundOver) return; // Prevent multiple triggers
             this.roundOver = true;
             this.gameActive = false;
             const winner = alphaAlive > 0 ? 'alpha' : 'bravo';
@@ -731,7 +739,7 @@ class GameEngine {
                 this._showBanner(`${winner.toUpperCase()} WINS ROUND ${this.round}!`, `${this.scores.alpha} — ${this.scores.bravo}${rewardText}`);
                 setTimeout(() => {
                     this._hideBanner();
-                    this.round++;
+                    this.round = Number(this.round) + 1;
                     this.startRound();
                 }, 2500);
             }
