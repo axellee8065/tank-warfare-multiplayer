@@ -26,12 +26,92 @@ class AudioManager {
         this.ctx = null;
         this.enabled = true;
         this.volume = 0.3;
+        this.buffers = {};
+        this.bgmSrc = null;
+        this.moveSrc = null;
     }
+    
     init() {
-        try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); }
+        try { 
+            this.ctx = new (window.AudioContext || window.webkitAudioContext)(); 
+            this._loadSounds();
+        }
         catch (e) { this.enabled = false; }
     }
-    _play(freq, duration, type = 'square', vol = 0.3) {
+
+    async _loadSounds() {
+        const sounds = {
+            'bgm': 'assets/sound/bgm.mp3',
+            'shoot': 'assets/sound/shoot.mp3',
+            'hit': 'assets/sound/hit.mp3',
+            'move': 'assets/sound/move.mp3',
+            'click': 'assets/sound/click.mp3'
+        };
+        for (const [key, path] of Object.entries(sounds)) {
+            try {
+                const res = await fetch(path);
+                const arrayBuffer = await res.arrayBuffer();
+                this.buffers[key] = await this.ctx.decodeAudioData(arrayBuffer);
+            } catch (e) {
+                console.warn("Failed to load sound", key, e);
+            }
+        }
+    }
+
+    playSound(key, vol = 1.0, loop = false) {
+        if (!this.enabled || !this.ctx || !this.buffers[key]) return null;
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+
+        const src = this.ctx.createBufferSource();
+        src.buffer = this.buffers[key];
+        src.loop = loop;
+
+        const gain = this.ctx.createGain();
+        gain.gain.value = this.volume * vol;
+
+        src.connect(gain);
+        gain.connect(this.ctx.destination);
+        src.start(0);
+
+        return { src, gain };
+    }
+
+    // New MP3 Sounds
+    shoot() { this.playSound('shoot', 0.6); }
+    hit() { this.playSound('hit', 0.8); }
+    explode() { this.playSound('hit', 1.0); } // User provided 1 hit sound for both Wall/Tank hit
+    click() { this.playSound('click', 0.8); }
+
+    startBgm() {
+        if (this.bgmSrc) return;
+        const res = this.playSound('bgm', 0.3, true);
+        if (res) this.bgmSrc = res.src;
+    }
+
+    stopBgm() {
+        if (this.bgmSrc) {
+            this.bgmSrc.stop();
+            this.bgmSrc = null;
+        }
+    }
+
+    updateMoveSound(isMoving) {
+        if (!this.enabled || !this.ctx || !this.buffers['move']) return;
+        if (isMoving) {
+            if (!this.moveSrc) {
+                const res = this.playSound('move', 0.4, true);
+                if (res) this.moveSrc = res.src;
+            }
+        } else {
+            if (this.moveSrc) {
+                this.moveSrc.stop();
+                this.moveSrc = null;
+            }
+        }
+    }
+
+    // Fallback synth sounds
+    _playSynth(freq, duration, type = 'square', vol = 0.3) {
         if (!this.enabled || !this.ctx) return;
         if (this.ctx.state === 'suspended') this.ctx.resume();
         const osc = this.ctx.createOscillator();
@@ -45,27 +125,8 @@ class AudioManager {
         osc.start();
         osc.stop(this.ctx.currentTime + duration);
     }
-    _noise(duration, vol = 0.2) {
-        if (!this.enabled || !this.ctx) return;
-        if (this.ctx.state === 'suspended') this.ctx.resume();
-        const bufferSize = this.ctx.sampleRate * duration;
-        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-        const src = this.ctx.createBufferSource();
-        const gain = this.ctx.createGain();
-        src.buffer = buffer;
-        gain.gain.setValueAtTime(vol * this.volume, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
-        src.connect(gain);
-        gain.connect(this.ctx.destination);
-        src.start();
-    }
-    shoot() { this._noise(0.08, 0.4); this._play(800, 0.06, 'square', 0.2); }
-    hit() { this._play(200, 0.15, 'sawtooth', 0.3); this._noise(0.1, 0.2); }
-    explode() { this._noise(0.4, 0.5); this._play(60, 0.5, 'sawtooth', 0.4); }
-    powerup() { this._play(600, 0.1, 'sine', 0.3); setTimeout(() => this._play(900, 0.15, 'sine', 0.3), 100); }
-    roundStart() { this._play(440, 0.15, 'square', 0.2); setTimeout(() => this._play(660, 0.2, 'square', 0.25), 150); }
+    powerup() { this._playSynth(600, 0.1, 'sine', 0.3); setTimeout(() => this._playSynth(900, 0.15, 'sine', 0.3), 100); }
+    roundStart() { this._playSynth(440, 0.15, 'square', 0.2); setTimeout(() => this._playSynth(660, 0.2, 'square', 0.25), 150); }
 }
 
 // ---- PARTICLE ----

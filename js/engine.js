@@ -12,8 +12,9 @@ class GameEngine {
         this.bullets = [];
         this.powerups = [];
         this.particles = new ParticleSystem();
-        this.audio = new AudioManager();
-        this.audio.init();
+        this.audio = window.audioManager || new AudioManager();
+        if (!window.audioManager) this.audio.init();
+        this.audio.startBgm();
         this.map = null;
         this.mode = '1v1';
         this.shakeX = 0;
@@ -426,9 +427,12 @@ class GameEngine {
                     this.map.resolveCollision(localTank);
                     this._resolveTankCollisions(localTank);
                     
+                    let isMoving = false;
                     if (Math.abs(movement.dx) > 0.5 || Math.abs(movement.dy) > 0.5) {
                         this.particles.trail(localTank.x, localTank.y, localTank.teamColor);
+                        isMoving = true;
                     }
+                    this.audio.updateMoveSound(isMoving);
                 }
                 // Attach authoritative position for server
                 input.clientPos = { x: localTank.x, y: localTank.y, angle: localTank.angle };
@@ -480,6 +484,8 @@ class GameEngine {
         if (!this.gameActive) return;
         this.gameTime += dt;
 
+        let anyHumanMoving = false;
+
         // Update tanks
         for (let i = 0; i < this.tanks.length; i++) {
             const tank = this.tanks[i];
@@ -505,6 +511,7 @@ class GameEngine {
 
                 if (Math.abs(movement.dx) > 0.5 || Math.abs(movement.dy) > 0.5) {
                     this.particles.trail(tank.x, tank.y, tank.teamColor);
+                    if (tank.isHuman) anyHumanMoving = true;
                 }
 
                 if (movement.wantShoot) {
@@ -522,6 +529,8 @@ class GameEngine {
                 }
             }
         }
+        
+        this.audio.updateMoveSound(anyHumanMoving);
 
         // Update bullets
         for (let i = this.bullets.length - 1; i >= 0; i--) {

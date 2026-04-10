@@ -39,6 +39,23 @@
     }
     preloadAssets();
 
+    // ---- Audio Management ----
+    window.audioManager = new AudioManager();
+    
+    // We can only init AudioContext upon first user interaction
+    const initAudio = () => {
+        if (!window.audioManager.ctx) window.audioManager.init();
+        document.removeEventListener('click', initAudio, true);
+    };
+    document.addEventListener('click', initAudio, true);
+
+    // Play click sound on all buttons
+    document.addEventListener('click', (e) => {
+        if (e.target.closest('button') || e.target.tagName.toLowerCase() === 'button') {
+            if (window.audioManager.ctx) window.audioManager.click();
+        }
+    });
+
     // ---- State ----
     let currentScreen = 'title-screen';
     let selectedMode = '1v1';
