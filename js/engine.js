@@ -776,8 +776,8 @@ class GameEngine {
         if (!this.shellInventory) return 0;
         const humanOnWinTeam = this.tanks.some(t => t.isHuman && (t.team === 0 ? 'alpha' : 'bravo') === winTeam);
         if (humanOnWinTeam) {
-            const params = typeof getRewardParams === 'function' ? getRewardParams(this.gameType) : {roundWin: 10, gameWin: 20};
-            const amount = type === 'game' ? params.gameWin : params.roundWin;
+            const params = typeof getRewardParams === 'function' ? getRewardParams(this.gameType) : {round: 5, win: 20};
+            const amount = type === 'game' ? (params.win || 20) : (params.round || 5);
             this.shellInventory.addCoins(amount);
             return amount;
         }
