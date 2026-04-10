@@ -281,7 +281,15 @@
     <script src="js/main.js"></script>
     <script>
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js').catch(() => {});
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for(let registration of registrations) {
+                    registration.unregister()
+                    .then(function() {
+                        console.log('Service worker unregistered. Reloading...');
+                        window.location.reload(true);
+                    });
+                }
+            });
         }
     </script>
 </body>
