@@ -83,7 +83,7 @@ class GameEngine {
             this.gameOver = false;
             this.gameActive = false;
             this.map.reset();
-            this.audio.roundStart();
+            if (this.audio && typeof this.audio.roundStart === 'function') this.audio.roundStart();
             this._showBanner(`ROUND ${this.round}`, '준비!');
             
             // Forcible Sync: At the start of a round, the Server's randomized spawn coordinates 
@@ -140,7 +140,7 @@ class GameEngine {
                 this.shakeIntensity = 12;
                 this.particles.explosion(data.x, data.y, true, 'huge');
             } else if (data.type === 'powerup') {
-                this.audio.powerup();
+                if (this.audio && typeof this.audio.powerup === 'function') this.audio.powerup();
             }
         });
 
@@ -337,7 +337,9 @@ class GameEngine {
             tank.respawn();
         }
 
-        this.audio.roundStart();
+        if (this.audio && typeof this.audio.roundStart === 'function') {
+            this.audio.roundStart();
+        }
         
         if (this.readyTimeout) clearTimeout(this.readyTimeout);
         if (this.gameType === 'online') {
@@ -636,7 +638,7 @@ class GameEngine {
                 if (!tank.alive) continue;
                 if (Math.hypot(tank.x - pu.x, tank.y - pu.y) < tank.getCollisionRadius() + pu.radius) {
                     tank.applyPowerUp(pu.type);
-                    this.audio.powerup();
+                    if (this.audio && typeof this.audio.powerup === 'function') this.audio.powerup();
                     this.particles.emit(pu.x, pu.y, 15, {
                         color: [pu.colors[pu.type], '#fff'], speed: 80, life: 0.4, size: 3
                     });
