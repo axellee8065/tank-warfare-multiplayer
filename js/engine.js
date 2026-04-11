@@ -718,8 +718,14 @@ class GameEngine {
             if (this.roundOver) return; // Prevent multiple triggers
             this.roundOver = true;
             this.gameActive = false;
-            const winner = alphaAlive > 0 ? 'alpha' : 'bravo';
-            this.scores[winner]++;
+            
+            let winner = 'draw';
+            if (alphaAlive === 0 && bravoAlive === 0) {
+                winner = 'draw';
+            } else {
+                winner = alphaAlive > 0 ? 'alpha' : 'bravo';
+                this.scores[winner]++;
+            }
 
             if (this.scores.alpha >= CONFIG.ROUNDS_TO_WIN || this.scores.bravo >= CONFIG.ROUNDS_TO_WIN) {
                 this.gameOver = true;
@@ -733,10 +739,14 @@ class GameEngine {
                     if (this.onGameEnd) this.onGameEnd(winTeam, this.scores, this.tanks);
                 }, 2500);
             } else {
-                // Award coins for round win
-                const reward = this._awardCoins(winner, 'round');
-                const rewardText = reward > 0 ? ` (+${reward} COINS)` : '';
-                this._showBanner(`${winner.toUpperCase()} WINS ROUND ${this.round}!`, `${this.scores.alpha} — ${this.scores.bravo}${rewardText}`);
+                if (winner === 'draw') {
+                    this._showBanner(`DRAW!`, `${this.scores.alpha} — ${this.scores.bravo}`);
+                } else {
+                    // Award coins for round win
+                    const reward = this._awardCoins(winner, 'round');
+                    const rewardText = reward > 0 ? ` (+${reward} COINS)` : '';
+                    this._showBanner(`${winner.toUpperCase()} WINS ROUND ${this.round}!`, `${this.scores.alpha} — ${this.scores.bravo}${rewardText}`);
+                }
                 setTimeout(() => {
                     this._hideBanner();
                     this.round = Number(this.round) + 1;

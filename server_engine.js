@@ -328,12 +328,12 @@ class ServerEngine {
             this.running = false;
             clearInterval(this.tickInterval);
 
-            let resultParams = { alphaAlive, bravoAlive };
-            if (!alphaAlive && !bravoAlive) { // Draw
-            } else if (alphaAlive) {
-                this.scores.alpha++;
+            let winner = 'draw';
+            if (alphaAlive === 0 && bravoAlive === 0) {
+                winner = 'draw';
             } else {
-                this.scores.bravo++;
+                winner = alphaAlive > 0 ? 'alpha' : 'bravo';
+                this.scores[winner]++;
             }
 
             // Sync final state before round logic triggers
@@ -358,7 +358,7 @@ class ServerEngine {
             this.io.to(this.roomId).emit('round_end', {
                 round: this.round,
                 scores: this.scores,
-                winner: alphaAlive && bravoAlive ? 'draw' : (alphaAlive ? 'alpha' : 'bravo')
+                winner: winner
             });
         }
     }
