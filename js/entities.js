@@ -279,8 +279,8 @@ class Tank {
         const cd = this.cooldownTime * (this.buffs.rapid > 0 ? 0.5 : 1);
         this.shootCooldown = cd;
         this.stats.shots++;
-        const bx = this.x + Math.cos(this.angle) * (this.h * 0.6);
-        const by = this.y + Math.sin(this.angle) * (this.h * 0.6);
+        const bx = this.x + Math.cos(this.angle) * (this.h * 0.4);
+        const by = this.y + Math.sin(this.angle) * (this.h * 0.4);
         return new Bullet(bx, by, this.angle, this.index, this.team, shellType);
     }
 
